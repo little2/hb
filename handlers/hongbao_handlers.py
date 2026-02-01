@@ -369,7 +369,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
     # ======= 私信通知（保持，但重复点选不会走到这里）=======
     if await ctx.r.should_skip_dm(uid):
-        await callback.answer(tr(lang, "dm_blocked"), show_alert=False)
+        await callback.answer(tr(lang, "dm_blocked"), show_alert=True)
         return
 
     try:
@@ -395,7 +395,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
     except TelegramForbiddenError:
         await ctx.r.set_dm_block(uid, DM_BLOCK_TTL_SEC)
-        await callback.answer(tr(lang, "dm_blocked"), show_alert=False)
+        await callback.answer(tr(lang, "dm_blocked"), show_alert=True)
         return
 
 
