@@ -2,3 +2,9 @@
 .env
 .python-version
 __pycache__/*.pyc
+*.pyc
+.pyc
+__pycache__/config.cpython-311.pyc
+__pycache__/material.cpython-311.pyc
+handlers/__pycache__/hongbao_handlers.cpython-311.pyc
+services/__pycache__/hongbao_service.cpython-311.pyc

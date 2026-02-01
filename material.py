@@ -1,3 +1,15 @@
+
+RP_SKINS1 = [
+    {
+        "key": "sz",
+        "file_id_cover": "AgACAgEAAxkBAAIPmml_GzvtyG5iqClOGjOEbG5NcANxAAI5DGsblFP4R6fkeNHfUeyfAQADAgADeQADOAQ",
+        "file_id_dm":"AgACAgEAAxkBAAIPmml_GzvtyG5iqClOGjOEbG5NcANxAAI5DGsblFP4R6fkeNHfUeyfAQADAgADeQADOAQ",
+        "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
+        "dm_text": "谢谢撸夫哥哥帮忙，龙嵬已经舒服多了！\n\n可以点下面的按钮逛逛鲁仔喔",
+        "activity_link": "https://t.me/luzai03bot?start=rank",
+    }
+]    
+
 RP_SKINS = [
     {
         "key": "sz",

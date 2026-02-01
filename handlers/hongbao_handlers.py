@@ -333,7 +333,22 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         new_text = "\n".join(lines)
 
         # ✅ 抢完则隐藏按钮
-        new_reply_markup = None if is_empty else base_msg.reply_markup
+        if is_empty:
+            if skin.get("activity_link"):
+                buttons = []
+                buttons.append(InlineKeyboardButton(
+                    text=tr(lang, "btn_activity"),
+                    url=skin.get("activity_link")
+                ))
+                new_reply_markup = InlineKeyboardMarkup(inline_keyboard=[buttons])
+
+
+            else:
+                new_reply_markup = None
+            
+        else:
+            new_reply_markup = base_msg.reply_markup
+       
 
         try:
             if base_msg.caption is not None:
