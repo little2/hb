@@ -91,7 +91,7 @@ def kb_redeem(hid: int, amount: int, lang: str, activity_link: str | None = None
             text=tr(lang, "btn_activity"),
             url=activity_link
         ))
-        
+
     return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 def kb_done(lang: str, activity_link: str | None = None) -> InlineKeyboardMarkup:
@@ -246,7 +246,8 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
     # ======= 首次抢到：编辑群里原消息（不再发新消息）=======
     u = callback.from_user
-    claimer_raw = ("@" + u.username) if u.username else (u.first_name or tr(lang, "default_someone"))
+    # claimer_raw = ("@" + u.username) if u.username else (u.username or tr(lang, "default_someone"))
+    claimer_raw = (u.first_name) if u.first_name else ("@" +u.username or tr(lang, "default_someone"))
     claimer = _h(claimer_raw)
 
     skin_key = await ctx.r.get_hb_skin(hid)
