@@ -51,4 +51,4 @@ DEFAULT_EXPIRE_MINUTES = int(os.getenv("DEFAULT_EXPIRE_MINUTES", "10"))
 # --- Optional throttles / safety ---
 GROUP_NOTICE_THROTTLE = os.getenv("GROUP_NOTICE_THROTTLE", "1") == "1"
 GROUP_NOTICE_PER_SEC = int(os.getenv("GROUP_NOTICE_PER_SEC", "2"))
-DM_BLOCK_TTL_SEC = int(os.getenv("DM_BLOCK_TTL_SEC", "600"))
+DM_BLOCK_TTL_SEC = int(os.getenv("DM_BLOCK_TTL_SEC", "60"))
