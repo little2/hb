@@ -1,5 +1,5 @@
 
-RP_SKINS1 = [
+RP_SKINS = [
     {
         "key": "sz",
         "file_id_cover": "AgACAgEAAxkBAAIPmml_GzvtyG5iqClOGjOEbG5NcANxAAI5DGsblFP4R6fkeNHfUeyfAQADAgADeQADOAQ",
@@ -10,7 +10,7 @@ RP_SKINS1 = [
     }
 ]    
 
-RP_SKINS = [
+RP_SKINS1 = [
     {
         "key": "sz",
         "file_id_cover": "AgACAgEAAxkBAAMPaX8pAgJj9Am5lLwhmpt-IjS15TsAAjkMaxuUU_hHeBD_jjC7RMYBAAMCAAN5AAM4BA",

@@ -226,6 +226,9 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     # 抢红包（由 Redis 保证幂等/原子）
     code, amount, is_empty = await ctx.r.claim(hid, uid)
 
+
+
+
     # 不存在/过期
     if code == -2:
         await callback.answer(tr(lang, "hb_not_found"), show_alert=False)
@@ -246,9 +249,23 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
     # ======= 首次抢到：编辑群里原消息（不再发新消息）=======
     u = callback.from_user
-    # claimer_raw = ("@" + u.username) if u.username else (u.username or tr(lang, "default_someone"))
-    claimer_raw = (u.first_name) if u.first_name else ("@" +u.username or tr(lang, "default_someone"))
+    if u.first_name:
+        claimer_raw = u.first_name
+    elif u.username:
+        claimer_raw = "@" + u.username
+    else:
+        claimer_raw = tr(lang, "default_someone")
+
     claimer = "<code>" + _h(claimer_raw) + "</code>"
+
+    await ctx.r.record_claim_meta(
+        hid=hid,
+        uid=uid,
+        amount=amount,
+        name=claimer_raw,
+        ts = datetime.now().timestamp(),
+    )
+
 
     skin_key = await ctx.r.get_hb_skin(hid)
     skin = next((s for s in RP_SKINS if s["key"] == skin_key), None)
@@ -259,56 +276,55 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
         lang = ctx.lang
         sender, total_amount, total_count, hb_sn, created_at = _parse_base(old_text, lang)
-        items = _parse_items(old_text, lang)
 
-        # 🔧 修复：把旧 king 行合并回 items（如果存在）
-        RE_KING = re.compile(I18N[lang]["re_king"], re.M)
-        m_king = RE_KING.search(old_text)
-        if m_king:
-            k_name = m_king.group(1).strip()
-            k_amt  = int(m_king.group(2))
-            # 避免重复
-            if not any(n == k_name for n, _, _ in items):
-                items.insert(0, (k_name, k_amt, ">5s"))
+        items = _parse_items(old_text, lang)
 
         sender = _h(sender)
         created_at = _h(created_at)
 
-        
+        # items：分两种路径
+        # - 未抢完：为了最小改动，可继续 parse old_text，再 append 本人
+        # - 抢完：必须从 Redis 全量重建（解决“名单盖掉”）
+        if is_empty:
+            rows = await ctx.r.list_claim_meta(hid)  # [(uid, amt, ts, name), ...] ts 升序
 
+            items = []
+            # 计算耗时：按 base_msg.date 作为起点
+            try:
+                dt0_ts = base_msg.date.timestamp()
+            except Exception:
+                dt0_ts = datetime.now().timestamp()
 
-        # 计算耗时：现在 - 红包主贴发送时间
-        # base_msg.date 是 Telegram 消息时间（UTC），做一个保守处理：按 naive 直接减也可用
-        try:
-            dt0 = base_msg.date
-            dt1 = datetime.now(dt0.tzinfo) if dt0.tzinfo else datetime.now()
-            cost_sec = (dt1 - dt0).total_seconds()
-        except Exception:
-            cost_sec = 9999.0
+            for _uid, amt, ts, name_raw in rows:
+                cost_sec = max(0.0, float(ts) - float(dt0_ts))
+                cost_txt = _fmt_cost(cost_sec)
+                name = "<code>" + _h(name_raw) + "</code>"
+                items.append((name, int(amt), cost_txt))
+        else:
+            items = _parse_items(old_text, lang)
 
-        cost_txt = _fmt_cost(cost_sec)
-        items.append((claimer, amount, cost_txt))
+            # 当前这次耗时
+            try:
+                dt0 = base_msg.date
+                dt1 = datetime.now(dt0.tzinfo) if dt0.tzinfo else datetime.now()
+                cost_sec = (dt1 - dt0).total_seconds()
+            except Exception:
+                cost_sec = 9999.0
+            cost_txt = _fmt_cost(cost_sec)
 
+            items.append((claimer, amount, cost_txt))
         claimed_amount = sum(a for _, a, _ in items)
         claimed_count = len(items)
-
-        # 运气王：按金额最大（并列时取最早出现的）
-        king_name, king_amt, _ = max(items, key=lambda x: x[1])
+        king_name, king_amt, _ = max(items, key=lambda x: x[1]) if items else ("", 0, "")
 
         lines = [
-            "<blockquote>"+tr(lang, "post_title", sender=sender)+"</blockquote>",
+            "<blockquote>" + tr(lang, "post_title", sender=sender) + "</blockquote>",
         ]
 
-        
-        intro_text = skin.get("intro_text") if skin else ""
-
+        intro_text = skin.get("intro_text") or ""
         if intro_text:
-            lines += [
-                "",
-                f"<i>💬 {_h(intro_text)}</i>",
-                "",
-            ]
-        # 重新组装全文（按你给的格式顺序）
+            lines += ["", f"<i>💬 {_h(intro_text)}</i>", ""]
+
         lines += [
             tr(lang, "post_total", total_amount=total_amount),
             tr(lang, "post_count", total_count=total_count),
@@ -318,84 +334,103 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             tr(lang, "post_stat_amount", claimed_amount=claimed_amount, total_amount=total_amount),
             tr(lang, "post_stat_count", claimed_count=claimed_count, total_count=total_count),
             "",
-            "<blockquote>"+tr(lang, "post_list_title")+"</blockquote>",
+            "<blockquote>" + tr(lang, "post_list_title") + "</blockquote>",
             "",
             tr(lang, "post_king", name=king_name, amt=king_amt),
             "",
         ]
+
         for name, amt, cost in items:
             lines.append(tr(lang, "post_item", name=name, amt=amt, cost=cost))
 
         if is_empty:
             lines += ["", tr(lang, "post_finished")]
 
-
         new_text = "\n".join(lines)
 
-        # ✅ 抢完则隐藏按钮
+        # 抢完：隐藏抢按钮，只保留活动按钮（如果有）
         if is_empty:
             if skin.get("activity_link"):
-                buttons = []
-                buttons.append(InlineKeyboardButton(
-                    text=tr(lang, "btn_activity"),
-                    url=skin.get("activity_link")
-                ))
-                new_reply_markup = InlineKeyboardMarkup(inline_keyboard=[buttons])
-
-
+                new_reply_markup = InlineKeyboardMarkup(
+                    inline_keyboard=[[
+                        InlineKeyboardButton(
+                            text=tr(lang, "btn_activity"),
+                            url=skin.get("activity_link"),
+                        )
+                    ]]
+                )
             else:
                 new_reply_markup = None
-            
         else:
             new_reply_markup = base_msg.reply_markup
-       
 
-        try:
-            if base_msg.caption is not None:
-                await base_msg.edit_caption(
-                    caption=new_text,
-                    reply_markup=new_reply_markup,
-                    parse_mode="HTML"
-                )
+        # （可选）群消息编辑节流：只节流“展示更新”，不影响抢到/DM
+        if (not is_empty) and GROUP_NOTICE_THROTTLE:
+            try:
+                ok_to_edit = await ctx.r.allow_group_notice(hid, GROUP_NOTICE_PER_SEC)
+            except Exception:
+                ok_to_edit = True
+            if not ok_to_edit:
+                new_reply_markup = base_msg.reply_markup  # 不变
+                # 直接跳过 edit（避免被刷爆）
+                goto_dm = True
             else:
-                await base_msg.edit_text(
-                    new_text,
-                    reply_markup=new_reply_markup,
-                    parse_mode="HTML"
-                )
+                goto_dm = True
+        else:
+            goto_dm = True
+
+        if goto_dm:
+            try:
+                if base_msg.caption is not None:
+                    await base_msg.edit_caption(
+                        caption=new_text,
+                        reply_markup=new_reply_markup,
+                        parse_mode="HTML",
+                    )
+                else:
+                    await base_msg.edit_text(
+                        new_text,
+                        reply_markup=new_reply_markup,
+                        parse_mode="HTML",
+                    )
+            except TelegramBadRequest:
+                pass
+
+    # ======= 私信通知（成功抢到才会走到这里） =======
+    if await ctx.r.should_skip_dm(uid):
+        try:
+            await callback.answer(tr(lang, "dm_blocked"), show_alert=True)
         except TelegramBadRequest:
             pass
-
-
-    # ======= 私信通知（保持，但重复点选不会走到这里）=======
-    if await ctx.r.should_skip_dm(uid):
-        await callback.answer(tr(lang, "dm_blocked"), show_alert=True)
         return
 
     try:
-        
-
         send_message_text = tr(lang, "dm_got", amount=amount)
-
         if skin.get("dm_text"):
             send_message_text += "\n\n" + skin["dm_text"]
 
-
         try:
-            await ctx.bot.send_photo(chat_id=uid,photo=skin["file_id_dm"], caption=send_message_text, parse_mode="HTML", protect_content=True, reply_markup=kb_redeem(hid, amount, lang, skin.get("activity_link")))
+            await ctx.bot.send_photo(
+                chat_id=uid,
+                photo=skin.get("file_id_dm"),
+                caption=send_message_text,
+                parse_mode="HTML",
+                protect_content=True,
+                reply_markup=kb_redeem(hid, amount, lang, skin.get("activity_link")),
+            )
         except TelegramBadRequest:
             await ctx.bot.send_message(
                 uid,
                 tr(lang, "dm_got", amount=amount),
-                reply_markup=kb_redeem(hid, amount, lang, skin.get("activity_link"))
+                reply_markup=kb_redeem(hid, amount, lang, skin.get("activity_link")),
             )
-            pass
-
-
 
     except TelegramForbiddenError:
         await ctx.r.set_dm_block(uid, DM_BLOCK_TTL_SEC)
-        await callback.answer(tr(lang, "dm_blocked"), show_alert=True)
+        try:
+            await callback.answer(tr(lang, "dm_blocked"), show_alert=True)
+        except TelegramBadRequest:
+            pass
         return
 
 

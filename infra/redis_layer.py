@@ -11,7 +11,7 @@ def k_st(hid: int, uid: int) -> str: return f"hb:{hid}:st:{uid}"
 def k_dm_block(uid: int) -> str: return f"dm_block:{uid}"
 def k_notice(hid: int, sec_bucket: int) -> str: return f"hb:{hid}:notice:{sec_bucket}"
 def k_skin(hid: int) -> str: return f"hb:{hid}:skin"
-
+def k_claim_meta(hid: int) -> str: return f"hb:{hid}:claims"
 
 def split_amounts(total_amount: int, total_count: int, min_unit: int) -> List[int]:
     if total_count <= 0:
@@ -203,3 +203,58 @@ class RedisLayer:
         if n == 1:
             await self.rds.expire(key, 2)
         return n <= per_sec
+
+    async def record_claim_meta(
+        self,
+        hid: int,
+        uid: int,
+        amount: int,
+        name: str,
+        ts: float,
+    ) -> None:
+        """
+        hb:{hid}:claims
+        field = uid
+        value = amount|ts|name
+        TTL：对齐红包主 list 的 TTL
+        """
+        key = k_claim_meta(hid)
+        val = f"{amount}|{ts}|{name}"
+
+        pipe = self.rds.pipeline()
+        pipe.hset(key, uid, val)
+
+        # 👉 关键点：TTL 对齐红包 list
+        ttl = await self.rds.ttl(k_list(hid))
+        if ttl and ttl > 0:
+            pipe.expire(key, ttl)
+
+        await pipe.execute()
+
+
+    async def list_claim_meta(
+        self,
+        hid: int,
+    ) -> list[tuple[int, int, float, str]]:
+        """
+        return [(uid, amount, ts, name), ...] 按 ts 升序
+        """
+        key = k_claim_meta(hid)
+        raw = await self.rds.hgetall(key)
+        if not raw:
+            return []
+
+        items = []
+        for k, v in raw.items():
+            uid = int(k)
+            if isinstance(v, (bytes, bytearray)):
+                v = v.decode("utf-8", "ignore")
+            try:
+                amt_s, ts_s, name = v.split("|", 2)
+                items.append((uid, int(amt_s), float(ts_s), name))
+            except Exception:
+                continue
+
+        items.sort(key=lambda x: x[2])  # 按时间
+        return items
+
