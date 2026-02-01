@@ -248,7 +248,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     u = callback.from_user
     # claimer_raw = ("@" + u.username) if u.username else (u.username or tr(lang, "default_someone"))
     claimer_raw = (u.first_name) if u.first_name else ("@" +u.username or tr(lang, "default_someone"))
-    claimer = _h(claimer_raw)
+    claimer = "<code>" + _h(claimer_raw) + "</code>"
 
     skin_key = await ctx.r.get_hb_skin(hid)
     skin = next((s for s in RP_SKINS if s["key"] == skin_key), None)
