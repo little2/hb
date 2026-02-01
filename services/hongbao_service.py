@@ -25,15 +25,7 @@ class HongbaoService:
     @staticmethod
     async def redeem_add_points(hongbao_id: int, user_id: int, amount: int) -> tuple[bool, str]:
         async def _txn(cur):
-            # 确保 user 行存在（最小写入，不覆盖其他字段）
-            await cur.execute(
-                """
-                INSERT INTO `user` (user_id, active, point, create_time, update_time)
-                VALUES (%s, 1, 0, NOW(), NOW())
-                ON DUPLICATE KEY UPDATE update_time = NOW()
-                """,
-                (user_id,),
-            )
+
 
             # 唯一键防重复领取
             await cur.execute(
@@ -41,11 +33,17 @@ class HongbaoService:
                 (hongbao_id, user_id, amount),
             )
 
-            # 加积分
-            await cur.execute(
-                "UPDATE `user` SET point = point + %s, update_time = NOW() WHERE user_id = %s",
-                (amount, user_id),
-            )
+            # # 确保 user 行存在（最小写入，不覆盖其他字段）
+            # await cur.execute(
+            #     """
+            #     INSERT INTO `user` (user_id, active, point, create_time, update_time)
+            #     VALUES (%s, 1, %s, NOW(), NOW())
+            #     ON DUPLICATE KEY UPDATE point = point + %s,update_time = NOW()
+            #     """,
+            #     (user_id, amount, amount),
+            # )
+
+            
 
         try:
             await MySQLPool.transaction(_txn)

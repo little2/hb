@@ -78,18 +78,35 @@ def kb_claim(hid: int, lang: str) -> InlineKeyboardMarkup:
         callback_data=f"hb_claim:{hid}"
     )]])
 
-def kb_redeem(hid: int, amount: int, lang: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
-        text=tr(lang, "btn_redeem", amount=amount),
-        callback_data=f"hb_redeem:{hid}"
-    )]])
+def kb_redeem(hid: int, amount: int, lang: str, activity_link: str | None = None) -> InlineKeyboardMarkup:
+    buttons = [
+        InlineKeyboardButton(
+            text=tr(lang, "btn_redeem", amount=amount),
+            callback_data=f"hb_redeem:{hid}"
+        )
+    ]
 
-def kb_done(lang: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
-        text=tr(lang, "btn_done"),
-        callback_data="hb_done"
-    )]])
+    if activity_link:
+        buttons.append(InlineKeyboardButton(
+            text=tr(lang, "btn_activity"),
+            url=activity_link
+        ))
+        
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
+def kb_done(lang: str, activity_link: str | None = None) -> InlineKeyboardMarkup:
+    buttons = [
+        InlineKeyboardButton(
+            text=tr(lang, "btn_done"),
+            callback_data="hb_done"
+        )
+    ]
+    if activity_link:
+        buttons.append(InlineKeyboardButton(
+            text=tr(lang, "btn_activity"),
+            url=activity_link
+        ))
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 @dataclass
 class AppCtx:
@@ -232,6 +249,8 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     claimer_raw = ("@" + u.username) if u.username else (u.first_name or tr(lang, "default_someone"))
     claimer = _h(claimer_raw)
 
+    skin_key = await ctx.r.get_hb_skin(hid)
+    skin = next((s for s in RP_SKINS if s["key"] == skin_key), None)
 
     if base_msg:
         old_text = (base_msg.caption or base_msg.text or "")
@@ -240,6 +259,16 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         lang = ctx.lang
         sender, total_amount, total_count, hb_sn, created_at = _parse_base(old_text, lang)
         items = _parse_items(old_text, lang)
+
+        # 🔧 修复：把旧 king 行合并回 items（如果存在）
+        RE_KING = re.compile(I18N[lang]["re_king"], re.M)
+        m_king = RE_KING.search(old_text)
+        if m_king:
+            k_name = m_king.group(1).strip()
+            k_amt  = int(m_king.group(2))
+            # 避免重复
+            if not any(n == k_name for n, _, _ in items):
+                items.insert(0, (k_name, k_amt, ">5s"))
 
         sender = _h(sender)
         created_at = _h(created_at)
@@ -269,8 +298,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             "<blockquote>"+tr(lang, "post_title", sender=sender)+"</blockquote>",
         ]
 
-        skin_key = await ctx.r.get_hb_skin(hid)
-        skin = next((s for s in RP_SKINS if s["key"] == skin_key), None)
+        
         intro_text = skin.get("intro_text") if skin else ""
 
         if intro_text:
@@ -329,17 +357,22 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         return
 
     try:
-        skin_key = await ctx.r.get_hb_skin(hid)
-        skin = next((s for s in RP_SKINS if s["key"] == skin_key), pick_rp_skin())
+        
+
+        send_message_text = tr(lang, "dm_got", amount=amount)
+
+        if skin.get("dm_text"):
+            send_message_text += "\n\n" + skin["dm_text"]
+
 
         try:
-            await ctx.bot.send_photo(chat_id=uid,photo=skin["file_id_dm"], caption=tr(lang, "dm_got", amount=amount), parse_mode="HTML", protect_content=True)
+            await ctx.bot.send_photo(chat_id=uid,photo=skin["file_id_dm"], caption=send_message_text, parse_mode="HTML", protect_content=True, reply_markup=kb_redeem(hid, amount, lang, skin.get("activity_link")))
         except TelegramBadRequest:
-            # await ctx.bot.send_message(
-            #     uid,
-            #     tr(lang, "dm_got", amount=amount),
-            #     reply_markup=kb_redeem(hid, amount, lang)
-            # )
+            await ctx.bot.send_message(
+                uid,
+                tr(lang, "dm_got", amount=amount),
+                reply_markup=kb_redeem(hid, amount, lang, skin.get("activity_link"))
+            )
             pass
 
 
@@ -360,6 +393,9 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
 
     uid = callback.from_user.id
     hid = int(callback.data.split(":")[1])
+    
+    skin_key = await ctx.r.get_hb_skin(hid)
+    skin = next((s for s in RP_SKINS if s["key"] == skin_key), None)
 
     code, amount = await ctx.r.redeem_prep(hid, uid, claiming_ttl=30)
 
@@ -370,7 +406,7 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
     if code == 2:
         # 已领取：按钮改“已领取”，提示用“重复点击已忽略/已领取过”二选一
         try:
-            await callback.message.edit_reply_markup(reply_markup=kb_done(lang=lang))
+            await callback.message.edit_reply_markup(reply_markup=kb_done(lang=lang, activity_link=skin.get("activity_link")))
         except TelegramBadRequest:
             pass
         await callback.message.answer(tr(lang, "redeem_ok_dup"))
@@ -388,7 +424,7 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
     if ok:
         await ctx.r.set_claimed(hid, uid)
         try:
-            await callback.message.edit_reply_markup(reply_markup=kb_done(lang=lang))
+            await callback.message.edit_reply_markup(reply_markup=kb_done(lang=lang, activity_link=skin.get("activity_link")))
         except TelegramBadRequest:
             pass
         await callback.message.answer(tr(lang, "redeem_ok", amount=amount))
@@ -397,7 +433,7 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
     if msg == "already_redeemed":
         await ctx.r.set_claimed(hid, uid)
         try:
-            await callback.message.edit_reply_markup(reply_markup=kb_done(lang=lang))
+            await callback.message.edit_reply_markup(reply_markup=kb_done(lang=lang, activity_link=skin.get("activity_link")))
         except TelegramBadRequest:
             pass
         await callback.message.answer(tr(lang, "redeem_ok_dup"))

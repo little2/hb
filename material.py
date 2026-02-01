@@ -1,4 +1,3 @@
-
 RP_SKINS = [
     {
         "key": "sz",
@@ -95,8 +94,9 @@ I18N = {
     "zh": {
         # ---- buttons ----
         "btn_claim": "💦 帮龙嵬榨精",
-        "btn_redeem": "✅ 已榨出 {amount} 精值",
-        "btn_done": "✅ 已榨掉",
+        "btn_redeem": "✅ 吃掉 {amount} 滴精",
+        "btn_done": "✅ 已吞食",
+        "btn_activity": "🏆 特典链结",
 
         # ---- cmd_rp / validation ----
         "rp_group_only": "请在群里召唤龙嵬：/rp <精值> <可射数 >",
@@ -112,7 +112,7 @@ I18N = {
         "already_claimed": "你已榨过（重复点击已忽略）",
         "too_late": "🫥 手慢了，龙嵬已射完。",
         "dm_blocked": "⚠️ 我无法私信你，请先私聊我发送 /start 开通私信。",
-        "dm_got": "💦 你撸出 {amount} 精值！\n\n点击按钮领取。",
+        "dm_got": "💦 你撸出 {amount} 精值！",
 
         # ---- redeem flow ----
         "redeem_processing": "入账中…",
@@ -145,12 +145,14 @@ I18N = {
         "re_sn": r"^HB_SN:\s*(\d+)\s*$",
         "re_time": r"^⏰\s*(.+?)\s*$",
         "re_item": r"^\-\s*(.+?)\s*撸出了\s*(\d+)\s*滴精\s*\((.+?)\)\s*$",
+        "re_king": r"👑\s*撸王：(.+?)\s*撸出了\s*(\d+)\s*滴精"
     },
     "zh1": {
         # ---- buttons ----
         "btn_claim": "🧧 抢红包",
         "btn_redeem": "✅ 领取 {amount} 积分",
         "btn_done": "✅ 已领取",
+        "btn_activity": "🏆 特典链结",
 
         # ---- cmd_rp / validation ----
         "rp_group_only": "请在群里创建红包：/rp <总积分> <份数> [有效分钟]",
@@ -166,7 +168,7 @@ I18N = {
         "already_claimed": "你已抢过（重复点击已忽略）",
         "too_late": "🫥 手慢了，红包已抢完。",
         "dm_blocked": "⚠️ 我无法私信你，请先私聊我发送 /start 开通私信。",
-        "dm_got": "🧧 你抢到 {amount} 积分！\n\n点击按钮领取（过期未领取会充公）。",
+        "dm_got": "🧧 你抢到 {amount} 积分！。",
 
         # ---- redeem flow ----
         "redeem_processing": "入账中…",
@@ -199,12 +201,14 @@ I18N = {
         "re_sn": r"^HB_SN:\s*(\d+)\s*$",
         "re_time": r"^⏰\s*(.+?)\s*$",
         "re_item": r"^\-\s*(.+?)\s*抢到了\s*(\d+)\s*积分\s*\((.+?)\)\s*$",
+        "re_king": r"👑\s*运气王：(.+?)\s*抢到了\s*(\d+)\s*积分",
 
     },
     "en": {
         "btn_claim": "🧧 Grab",
         "btn_redeem": "✅ Redeem {amount}",
         "btn_done": "✅ Redeemed",
+        "btn_activity": "🏆 特典链结",
 
         "rp_group_only": "Create in group: /rp <total> <count> [minutes]",
         "rp_usage": "Usage: /rp <total> <count> [minutes]\nExample: /rp 100 10 5",
@@ -218,7 +222,7 @@ I18N = {
         "already_claimed": "Already grabbed (ignored).",
         "too_late": "🫥 Too late, all gone.",
         "dm_blocked": "⚠️ Can't DM you. Please /start me first.",
-        "dm_got": "🧧 You got {amount}!\n\nTap to redeem (expired -> confiscated).",
+        "dm_got": "🧧 You got {amount}！",
 
         "redeem_processing": "Redeeming…",
         "redeem_fail_expired": "⛔ Failed: expired / no eligibility (confiscated).",
@@ -248,6 +252,6 @@ I18N = {
         "re_sn": r"^HB_SN:\s*(\d+)\s*$",
         "re_time": r"^⏰\s*(.+?)\s*$",
         "re_item": r"^\-\s*(.+?)\s*got\s*(\d+)\s*\((.+?)\)\s*$",
-
+        "re_king": r"👑\s*Luckiest:\s*(.+?)\s*got\s*(\d+)\s*$",
     },
 }
