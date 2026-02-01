@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from aiogram import Router, F
+from aiogram.enums import ChatType
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
@@ -58,7 +59,7 @@ router = Router()
 # from aiogram import Router, F
 # from aiogram.types import Message
 
-@router.message(F.photo)
+@router.message(F.chat.type == ChatType.PRIVATE, F.photo)
 async def on_photo(message: Message):
     # message.photo 是 List[PhotoSize]
     largest = message.photo[-1]
@@ -178,9 +179,6 @@ async def cmd_rp(message: Message, ctx: AppCtx):
 
     # sent = await message.answer(text, reply_markup=kb_claim(hid, lang))
     try:
-
-        
-
         sent = await message.answer_photo(
             photo=skin["file_id_cover"],
             caption=text,
@@ -419,9 +417,6 @@ async def cb_done(callback: CallbackQuery, ctx: AppCtx):
 
 def _parse_base(old_text: str, lang: str):
     RE_TOTAL, RE_COUNT, RE_HEADER, RE_SN, RE_TIME, _RE_ITEM  = get_patterns(lang)
-
-    
-
     m_header = RE_HEADER.search(old_text)
     m_total  = RE_TOTAL.search(old_text)
     m_count  = RE_COUNT.search(old_text)
