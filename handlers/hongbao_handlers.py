@@ -197,10 +197,10 @@ async def cmd_rp(message: Message, ctx: AppCtx):
 async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     # 先秒回，避免 Telegram callback 超时
     lang = ctx.lang
-    try:
-        await callback.answer(tr(lang, "cb_processing"), show_alert=False)
-    except TelegramBadRequest:
-        pass
+    # try:
+    #     await callback.answer(tr(lang, "cb_processing"), show_alert=False)
+    # except TelegramBadRequest:
+    #     pass
 
     uid = callback.from_user.id
     hid = int(callback.data.split(":")[1])
@@ -213,7 +213,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
     # 不存在/过期
     if code == -2:
-        await callback.message.answer(tr(lang, "hb_not_found"))
+        await callback.answer(tr(lang, "hb_not_found"), show_alert=False)
         return
 
     # 已抢过（重复点选）：不 edit、不 DM
@@ -226,7 +226,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
     # 抢完（手慢了）
     if code == -1 or amount <= 0:
-        await callback.message.answer(tr(lang, "too_late"))
+        await callback.answer(tr(lang, "too_late"), show_alert=False)
         return
 
     # ======= 首次抢到：编辑群里原消息（不再发新消息）=======
@@ -327,7 +327,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
     # ======= 私信通知（保持，但重复点选不会走到这里）=======
     if await ctx.r.should_skip_dm(uid):
-        await callback.message.answer(tr(lang, "dm_blocked"))
+        await callback.answer(tr(lang, "dm_blocked"), show_alert=False)
         return
 
     try:
@@ -348,7 +348,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
     except TelegramForbiddenError:
         await ctx.r.set_dm_block(uid, DM_BLOCK_TTL_SEC)
-        await callback.message.answer(tr(lang, "dm_blocked"))
+        await callback.answer(tr(lang, "dm_blocked"), show_alert=False)
         return
 
 
