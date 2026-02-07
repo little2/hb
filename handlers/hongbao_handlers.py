@@ -237,7 +237,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     # 抢红包（由 Redis 保证幂等/原子）
     code, amount, is_empty = await ctx.r.claim(hid, uid)
 
-
+    claimer = tr(lang, "default_someone")
 
     # 已抢过（重复点选）：不 edit、不 DM
     if code == 1:
