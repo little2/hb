@@ -273,6 +273,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         )
 
     skin_key = await ctx.r.get_hb_skin(hid)
+
     skin = next((s for s in RP_SKINS if s["key"] == skin_key), None)
 
     if base_msg:

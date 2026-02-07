@@ -121,7 +121,7 @@ I18N = {
         # ---- claim flow ----
         "cb_processing": "处理中…",
         "hb_not_found": "⛔ 龙嵬不存在或已消灭。",
-        "already_claimed": "你已榨过（重复点击已忽略）",
+        "already_claimed": "你已榨过（重复点击将忽略）",
         "too_late": "🫥 手慢了，龙嵬已射完。",
         "dm_blocked": "⚠️ 我无法私信你，请先私聊我发送 /start 开通私信。",
         "dm_got": "💦 你撸出 {amount} 精值！",

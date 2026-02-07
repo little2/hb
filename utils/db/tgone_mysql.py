@@ -319,6 +319,13 @@ class MySQLPool:
             await cur.execute(sql, params or ())
             return True
         except Exception as e:
+            # ✅ 让断线错误上抛给 @reconnecting
+            if isinstance(e, aiomysql.OperationalError):
+                code = e.args[0] if e.args else None
+                if code in (2006, 2013):
+                    raise
+
+
             if error_tag:
                 tag = error_tag
             else:
@@ -343,7 +350,13 @@ class MySQLPool:
             await cur.execute(sql, params or ())
             return await cur.fetchone()
         except Exception as e:
-            print(f"{e}", flush=True)
+            # ✅ 让断线错误上抛给 @reconnecting
+            if isinstance(e, aiomysql.OperationalError):
+                code = e.args[0] if e.args else None
+                if code in (2006, 2013):
+                    raise
+
+
             if error_tag:
                 tag = error_tag
             else:
@@ -365,6 +378,12 @@ class MySQLPool:
             await cur.execute(sql, params or ())
             return await cur.fetchall()
         except Exception as e:
+            # ✅ 让断线错误上抛给 @reconnecting
+            if isinstance(e, aiomysql.OperationalError):
+                code = e.args[0] if e.args else None
+                if code in (2006, 2013):
+                    raise
+
             if error_tag:
                 tag = error_tag
             else:
