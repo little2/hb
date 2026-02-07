@@ -31,13 +31,10 @@ def pick_rp_skin() -> dict:
         raise RuntimeError("RP_SKINS is empty")
     return random.choice(RP_SKINS)
 
-
 def tr(lang: str, key: str, **kwargs) -> str:
     pack = I18N.get(lang) or I18N["zh"]
     s = pack.get(key) or I18N["zh"].get(key) or key
     return s.format(**kwargs)
-
-
 
 @lru_cache(maxsize=4)
 def get_patterns(lang: str):
@@ -51,10 +48,7 @@ def get_patterns(lang: str):
         re.compile(pack["re_item"], re.M),
     )
 
-
-
 router = Router()
-
 
 # from aiogram import Router, F
 # from aiogram.types import Message
@@ -208,6 +202,19 @@ async def cmd_rp(message: Message, ctx: AppCtx):
 
     await HongbaoService.bind_message(hid, sent.message_id)
 
+    # ======= Pin 消息到群组 =======
+    try:
+        await ctx.bot.pin_chat_message(
+            chat_id=message.chat.id,
+            message_id=sent.message_id,
+            disable_notification=True,  # 不发送通知
+        )
+    except TelegramBadRequest as e:
+        # pin 失败不影响红包功能，仅记录（可选）
+        pass
+    except Exception as e:
+        pass
+
 @router.callback_query(F.data.startswith("hb_claim:"))
 async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     # 先秒回，避免 Telegram callback 超时
@@ -228,12 +235,6 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
 
 
-
-    # 不存在/过期
-    if code == -2:
-        await callback.answer(tr(lang, "hb_not_found"), show_alert=False)
-        return
-
     # 已抢过（重复点选）：不 edit、不 DM
     if code == 1:
         try:
@@ -242,30 +243,34 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             pass
         return
 
+
+    # 不存在/过期
+    if code == -2:
+        await callback.answer(tr(lang, "hb_not_found"), show_alert=False)
+        
     # 抢完（手慢了）
-    if code == -1 or amount <= 0:
+    elif code == -1 or amount <= 0:
         await callback.answer(tr(lang, "too_late"), show_alert=False)
-        return
-
-    # ======= 首次抢到：编辑群里原消息（不再发新消息）=======
-    u = callback.from_user
-    if u.first_name:
-        claimer_raw = u.first_name
-    elif u.username:
-        claimer_raw = "@" + u.username
+       
     else:
-        claimer_raw = tr(lang, "default_someone")
+        # ======= 首次抢到：编辑群里原消息（不再发新消息）=======
+        u = callback.from_user
+        if u.first_name:
+            claimer_raw = u.first_name
+        elif u.username:
+            claimer_raw = "@" + u.username
+        else:
+            claimer_raw = tr(lang, "default_someone")
 
-    claimer = "<code>" + _h(claimer_raw) + "</code>"
+        claimer = "<code>" + _h(claimer_raw) + "</code>"
 
-    await ctx.r.record_claim_meta(
-        hid=hid,
-        uid=uid,
-        amount=amount,
-        name=claimer_raw,
-        ts = datetime.now().timestamp(),
-    )
-
+        await ctx.r.record_claim_meta(
+            hid=hid,
+            uid=uid,
+            amount=amount,
+            name=claimer_raw,
+            ts = datetime.now().timestamp(),
+        )
 
     skin_key = await ctx.r.get_hb_skin(hid)
     skin = next((s for s in RP_SKINS if s["key"] == skin_key), None)
@@ -286,8 +291,18 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         # - 未抢完：为了最小改动，可继续 parse old_text，再 append 本人
         # - 抢完：必须从 Redis 全量重建（解决“名单盖掉”）
         if is_empty:
-            rows = await ctx.r.list_claim_meta(hid)  # [(uid, amt, ts, name), ...] ts 升序
+            try:
+                if base_msg:
+                    await ctx.bot.unpin_chat_message(
+                        chat_id=base_msg.chat.id,
+                        message_id=base_msg.message_id,
+                    )
+            except TelegramBadRequest:
+                pass
+            except Exception:
+                pass
 
+            rows = await ctx.r.list_claim_meta(hid)  # [(uid, amt, ts, name), ...] ts 升序
             items = []
             # 计算耗时：按 base_msg.date 作为起点
             try:
@@ -313,6 +328,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             cost_txt = _fmt_cost(cost_sec)
 
             items.append((claimer, amount, cost_txt))
+        
         claimed_amount = sum(a for _, a, _ in items)
         claimed_count = len(items)
         king_name, king_amt, _ = max(items, key=lambda x: x[1]) if items else ("", 0, "")
@@ -432,6 +448,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         except TelegramBadRequest:
             pass
         return
+
 
 
 @router.callback_query(F.data.startswith("hb_redeem:"))

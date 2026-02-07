@@ -18,7 +18,8 @@ assert REDIS_URL, "REDIS_URL is required"
 assert MYSQL_DB, "MYSQL_DB_NAME is required"
 
 from infra.redis_layer import RedisLayer
-from handlers.hongbao_handlers import router, AppCtx
+from handlers.hongbao_handlers import router
+from handlers.hongbao_handlers import AppCtx
 
 
 
@@ -44,28 +45,31 @@ async def build_app() -> tuple[Bot, Dispatcher, RedisLayer]:
     dp = Dispatcher()
 
     # Redis (Render KV)
-    rds = redis.from_url(
-        REDIS_URL,
-        decode_responses=False,
-        health_check_interval=30,
-        socket_connect_timeout=5,
-        socket_timeout=5,
-    )
-    rlayer = RedisLayer(rds)
-    await rlayer.load_scripts()
+    try:
+        # Redis (Render KV)
+        rds = redis.from_url(
+            REDIS_URL,
+            decode_responses=False,
+            health_check_interval=30,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+        )
+        rlayer = RedisLayer(rds)
+        await rlayer.load_scripts()
 
-    # MySQL pool init via shared lib
-    # 你共享库里应当提供 init/ensure 配置入口，示例假设如下：
-    await MySQLPool.init_pool(
-        unix_socket=MYSQL_UNIX_SOCKET,
-        user=MYSQL_USER,
-        password=MYSQL_PASSWORD,
-        db=MYSQL_DB,
-        autocommit=True,           # 注意：transaction() 内部会 begin/commit；共享库需支持
-        charset="utf8mb4",
-        minsize=1,
-        maxsize=10,
-    )
+        await MySQLPool.init_pool(
+            unix_socket=MYSQL_UNIX_SOCKET,
+            user=MYSQL_USER,
+            password=MYSQL_PASSWORD,
+            db=MYSQL_DB,
+            autocommit=True,
+            charset="utf8mb4",
+            minsize=1,
+            maxsize=10,
+        )
+    except Exception:
+        print("Failed to connect to Redis or MySQL. Please check your configuration.")
+        raise
 
     ctx = AppCtx(r=rlayer, bot=bot)
     dp.update.outer_middleware(CtxMiddleware(ctx))
@@ -74,9 +78,12 @@ async def build_app() -> tuple[Bot, Dispatcher, RedisLayer]:
 
 
 async def run_polling(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
-    await rlayer.rds.close()
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        await dp.start_polling(bot)
+    finally:
+        await rlayer.rds.close()
+        await bot.session.close()
 
 
 async def run_webhook(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
@@ -115,7 +122,7 @@ async def run_webhook(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
         await bot.delete_webhook(drop_pending_updates=False)
         await runner.cleanup()
         await rlayer.rds.close()
-
+        await bot.session.close()
 
 async def main():
     bot, dp, rlayer = await build_app()

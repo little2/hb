@@ -52,3 +52,11 @@ class HongbaoService:
             return False, "already_redeemed"
         except Exception as e:
             return False, f"db_error:{e!s}"
+
+    @staticmethod
+    async def get_hongbao(hongbao_id: int) -> dict | None:
+        row = await MySQLPool.fetchone(
+            "SELECT * FROM hongbao WHERE id=%s",
+            (hongbao_id,)
+        )
+        return row  # 返回 dict 或 None
