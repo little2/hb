@@ -146,6 +146,10 @@ async def cmd_rp(message: Message, ctx: AppCtx):
     ttl_sec = max(1, int((expire_at - now).total_seconds()))
 
     hid = await HongbaoService.create_hongbao(sender_id, chat_id, total_amount, total_count, expire_at)
+    if hid <= 0:
+        await message.reply(tr(lang, "redeem_busy"))
+        return
+
 
     amounts = split_amounts(total_amount, total_count, MIN_UNIT)
     await ctx.r.init_list(hid, amounts, ttl_sec)
