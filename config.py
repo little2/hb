@@ -46,7 +46,7 @@ WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")             # recommended
 # --- Hongbao rules ---
 MIN_UNIT = int(os.getenv("MIN_UNIT", "1"))
 MAX_COUNT = int(os.getenv("MAX_COUNT", "50"))
-DEFAULT_EXPIRE_MINUTES = int(os.getenv("DEFAULT_EXPIRE_MINUTES", "10"))
+DEFAULT_EXPIRE_MINUTES = int(os.getenv("DEFAULT_EXPIRE_MINUTES", "180"))
 
 # --- Optional throttles / safety ---
 GROUP_NOTICE_THROTTLE = os.getenv("GROUP_NOTICE_THROTTLE", "1") == "1"

@@ -127,6 +127,9 @@ async def run_webhook(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
 async def main():
     bot, dp, rlayer = await build_app()
 
+    bot_info = await bot.get_me()
+    print(f"Bot started as @{bot_info.username} (id: {bot_info.id})")
+
     if BOT_MODE == "polling":
         await run_polling(bot, dp, rlayer)
     elif BOT_MODE == "webhook":

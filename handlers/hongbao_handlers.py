@@ -7,6 +7,7 @@ from aiogram.enums import ChatType
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.utils.formatting import Text
 
 import re
 
@@ -143,6 +144,102 @@ async def cmd_rp(message: Message, ctx: AppCtx):
         await message.reply(tr(lang, "rp_param_int"))
         return
 
+    skin = pick_rp_skin()
+
+    await _do_create_hongbao(ctx, lang, message, total_count, total_amount, expire_minutes, skin)
+
+    # if total_count <= 0 or total_count > MAX_COUNT:
+    #     await message.reply(tr(lang, "rp_count_range", max_count=MAX_COUNT))
+    #     return
+    # if total_amount < total_count * MIN_UNIT:
+    #     await message.reply(tr(lang, "rp_total_too_small", min_unit=MIN_UNIT))
+    #     return
+    # if expire_minutes <= 0:
+    #     await message.reply(tr(lang, "rp_expire_invalid"))
+    #     return
+
+    # sender_id = message.from_user.id if message.from_user else 0
+    # chat_id = message.chat.id
+
+    # now = datetime.now()
+    # expire_at = now + timedelta(minutes=expire_minutes)
+    # ttl_sec = max(1, int((expire_at - now).total_seconds()))
+
+    # hid = await HongbaoService.create_hongbao(sender_id, chat_id, total_amount, total_count, expire_at)
+    # if hid <= 0:
+    #     await message.reply(tr(lang, "redeem_busy"))
+    #     return
+
+
+    # amounts = split_amounts(total_amount, total_count, MIN_UNIT)
+    # await ctx.r.init_list(hid, amounts, ttl_sec)
+
+    # # created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # skin = pick_rp_skin()
+    # await ctx.r.set_hb_skin(hid, skin["hb_key"], ttl_sec)
+
+    # sender_name = _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
+
+    # line = [
+    #     "<blockquote>"+tr(lang, "post_title", sender=sender_name)+"</blockquote>",
+    # ]
+
+
+    # if skin["intro_text"]:
+    #     line += [
+    #         "",
+    #         f"<i>💬 {(skin['intro_text'])}</i>",
+    #         "",
+    #     ]
+
+    # line += [
+    #     tr(lang, "post_total", total_amount=total_amount),
+    #     tr(lang, "post_count", total_count=total_count),
+    #     tr(lang, "post_sn", sn=hid),
+    #     tr(lang, "post_time", created_at=created_at),
+    #     "",
+    #     tr(lang, "post_stat_amount", claimed_amount=0, total_amount=total_amount),
+    #     tr(lang, "post_stat_count", claimed_count=0, total_count=total_count),
+    #     "",
+    #     "<blockquote>"+tr(lang, "post_list_title")+"</blockquote>",
+    #     "",
+    # ]
+
+    # text ="\n".join(line)
+
+
+
+
+    # # sent = await message.answer(text, reply_markup=kb_claim(hid, lang))
+    # try:
+    #     sent = await message.answer_photo(
+    #         photo=skin["file_id_cover"],
+    #         caption=text,
+    #         reply_markup=kb_claim(hid, lang),
+    #         parse_mode="HTML",
+    #     )
+    # except Exception as e:
+    #     await message.reply(f"❌ 发送红包消息失败：{e}")
+    #     return
+
+    # await HongbaoService.bind_message(hid, sent.message_id)
+
+    # # ======= Pin 消息到群组 =======
+    # try:
+    #     await ctx.bot.pin_chat_message(
+    #         chat_id=message.chat.id,
+    #         message_id=sent.message_id,
+    #         disable_notification=True,  # 不发送通知
+    #     )
+    # except TelegramBadRequest as e:
+    #     # pin 失败不影响红包功能，仅记录（可选）
+    #     pass
+    # except Exception as e:
+    #     pass
+
+async def _do_create_hongbao(ctx: AppCtx, lang: str,  message: Message,  total_count: int, total_amount: int, expire_minutes: int,skin: dict):
+
     if total_count <= 0 or total_count > MAX_COUNT:
         await message.reply(tr(lang, "rp_count_range", max_count=MAX_COUNT))
         return
@@ -160,22 +257,19 @@ async def cmd_rp(message: Message, ctx: AppCtx):
     expire_at = now + timedelta(minutes=expire_minutes)
     ttl_sec = max(1, int((expire_at - now).total_seconds()))
 
-    hid = await HongbaoService.create_hongbao(sender_id, chat_id, total_amount, total_count, expire_at)
+    hid = await HongbaoService.create_hongbao(sender_id, chat_id, total_amount, total_count, expire_at, skin)
     if hid <= 0:
         await message.reply(tr(lang, "redeem_busy"))
         return
 
+    await ctx.r.set_hb_skin(hid, skin["hb_key"], ttl_sec)
 
     amounts = split_amounts(total_amount, total_count, MIN_UNIT)
     await ctx.r.init_list(hid, amounts, ttl_sec)
 
- 
-    sender_name = _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
 
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    skin = pick_rp_skin()
-    await ctx.r.set_hb_skin(hid, skin["key"], ttl_sec)
+    sender_name = _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
 
     line = [
         "<blockquote>"+tr(lang, "post_title", sender=sender_name)+"</blockquote>",
@@ -203,10 +297,6 @@ async def cmd_rp(message: Message, ctx: AppCtx):
     ]
 
     text ="\n".join(line)
-
-
-
-
     # sent = await message.answer(text, reply_markup=kb_claim(hid, lang))
     try:
         sent = await message.answer_photo(
@@ -221,7 +311,7 @@ async def cmd_rp(message: Message, ctx: AppCtx):
 
     await HongbaoService.bind_message(hid, sent.message_id)
 
-    # ======= Pin 消息到群组 =======
+     # ======= Pin 消息到群组 =======
     try:
         await ctx.bot.pin_chat_message(
             chat_id=message.chat.id,
@@ -233,6 +323,8 @@ async def cmd_rp(message: Message, ctx: AppCtx):
         pass
     except Exception as e:
         pass
+    pass
+
 
 @router.callback_query(F.data.startswith("hb_claim:"))
 async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
@@ -266,6 +358,61 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     # 不存在/过期
     if code == -2:
         await callback.answer(tr(lang, "hb_not_found"), show_alert=False)
+        print(f"Claim failed: hid={hid} not found or expired")
+        if base_msg:
+            print(f"Base message: chat_id={base_msg.chat.id} message_id={base_msg.message_id}")
+            await ctx.bot.unpin_chat_message(
+                chat_id=base_msg.chat.id,
+                message_id=base_msg.message_id,
+            )
+
+            hangbao_info = await HongbaoService.get_hongbao(hid)  # 仅为了日志记录，顺便验证是否真的过期（MySQL 层）
+
+
+            if hangbao_info.get("activity_link"):
+                new_reply_markup = InlineKeyboardMarkup(
+                    inline_keyboard=[[
+                        InlineKeyboardButton(
+                            text=tr(lang, "btn_activity"),
+                            url=hangbao_info.get("activity_link"),
+                        )
+                    ]]
+                )
+            else:
+                new_reply_markup = None
+
+
+            try:
+                
+
+                if base_msg.caption is not None:
+                    caption = base_msg.caption or ""
+                    
+                    entities = base_msg.caption_entities or []
+                    new_text = Text.from_entities(caption, entities).as_html()
+
+                    new_text += "\n\n" + tr(lang, "post_expired")
+
+                    await base_msg.edit_caption(
+                        caption=new_text,
+                        reply_markup=new_reply_markup,
+                        parse_mode="HTML",
+                    )
+                else:
+                    text = base_msg.text or ""
+                    entities = base_msg.entities or []
+                    new_text = Text.from_entities(text, entities).as_html()
+
+                    new_text += "\n\n" + tr(lang, "post_expired")
+
+                    await base_msg.edit_text(
+                        new_text,
+                        reply_markup=new_reply_markup,
+                        parse_mode="HTML",
+                    )
+            except TelegramBadRequest:
+                pass    
+        return
         
     # 抢完（手慢了）
     elif code == -1 or amount <= 0:
@@ -292,7 +439,8 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         )
 
     skin_key = await ctx.r.get_hb_skin(hid)
-    skin = next((s for s in RP_SKINS if s["key"] == skin_key), None)
+
+    skin = next((s for s in RP_SKINS if s["hb_key"] == skin_key), None)
 
     if base_msg:
         old_text = (base_msg.caption or base_msg.text or "")
@@ -321,19 +469,20 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             except Exception:
                 pass
 
-            rows = await ctx.r.list_claim_meta(hid)  # [(uid, amt, ts, name), ...] ts 升序
-            items = []
-            # 计算耗时：按 base_msg.date 作为起点
-            try:
-                dt0_ts = base_msg.date.timestamp()
-            except Exception:
-                dt0_ts = datetime.now().timestamp()
+            if is_empty:
+                rows = await ctx.r.list_claim_meta(hid)  # [(uid, amt, ts, name), ...] ts 升序
+                items = []
+                # 计算耗时：按 base_msg.date 作为起点
+                try:
+                    dt0_ts = base_msg.date.timestamp()
+                except Exception:
+                    dt0_ts = datetime.now().timestamp()
 
-            for _uid, amt, ts, name_raw in rows:
-                cost_sec = max(0.0, float(ts) - float(dt0_ts))
-                cost_txt = _fmt_cost(cost_sec)
-                name = "<code>" + _h(name_raw) + "</code>"
-                items.append((name, int(amt), cost_txt))
+                for _uid, amt, ts, name_raw in rows:
+                    cost_sec = max(0.0, float(ts) - float(dt0_ts))
+                    cost_txt = _fmt_cost(cost_sec)
+                    name = "<code>" + _h(name_raw) + "</code>"
+                    items.append((name, int(amt), cost_txt))
         else:
             items = _parse_items(old_text, lang)
 
@@ -380,13 +529,11 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
         if is_empty:
             lines += ["", tr(lang, "post_finished")]
-        elif code == -2:
-            lines += ["", tr(lang, "post_expired")]
 
         new_text = "\n".join(lines)
 
         # 抢完：隐藏抢按钮，只保留活动按钮（如果有）
-        if is_empty or code == -2:
+        if is_empty:
             if skin.get("activity_link"):
                 new_reply_markup = InlineKeyboardMarkup(
                     inline_keyboard=[[
@@ -475,24 +622,39 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 @router.callback_query(F.data.startswith("hb_redeem:"))
 async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
     lang = ctx.lang
+
+
+    uid = callback.from_user.id
+    hid = int(callback.data.split(":")[1])
+    
+    user_contribute_today = await HongbaoService.get_contribute_today(uid)
+    if user_contribute_today and user_contribute_today.get("count", 0) < 1:
+        await callback.answer(tr(lang, "redeem_after_talk"), show_alert=True)
+        return
+
     try:
         await callback.answer(tr(lang, "redeem_processing"), show_alert=False)
     except TelegramBadRequest:
         pass
 
-    uid = callback.from_user.id
-    hid = int(callback.data.split(":")[1])
-    
     skin_key = await ctx.r.get_hb_skin(hid)
-    skin = next((s for s in RP_SKINS if s["key"] == skin_key), None)
+
+
+
+    print(f"Redeem: hid={hid} skin_key={skin_key}")
+    skin = next((s for s in RP_SKINS if s["hb_key"] == skin_key), None)
+    print(f"Skin: {skin}")
 
     code, amount = await ctx.r.redeem_prep(hid, uid, claiming_ttl=30)
+    print(f"Redeem prep: code={code} amount={amount}")
 
-    if code == -2:
+    if code == -2 or skin_key is None:
         await callback.message.answer(tr(lang, "redeem_fail_expired"))
         try:
-            await callback.message.edit_reply_markup(reply_markup=kb_expired(lang=lang, activity_link=skin.get("activity_link")))
+            hongbao_info = await HongbaoService.get_hongbao(hid)  # 仅为了日志记录，顺便验证是否真的过期（MySQL 层）
+            await callback.message.edit_reply_markup(reply_markup=kb_expired(lang=lang, activity_link=hongbao_info.get("activity_link")))
         except TelegramBadRequest:
+            await callback.message.edit_reply_markup(reply_markup=None)
             pass
         return
 
@@ -512,6 +674,10 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
     if code != 0 or amount <= 0:
         await callback.message.answer(tr(lang, "redeem_state_bad"))
         return
+
+
+
+    print(f"Redeem prep success: hid={hid} uid={uid} amount={amount}")
 
     ok, msg = await HongbaoService.redeem_add_points(hid, uid, amount)
     if ok:

@@ -1,7 +1,7 @@
 
-RP_SKINS1 = [
+RP_SKINS = [
     {
-        "key": "sz",
+        "hb_key": "sz",
         "file_id_cover": "AgACAgEAAxkBAAIPmml_GzvtyG5iqClOGjOEbG5NcANxAAI5DGsblFP4R6fkeNHfUeyfAQADAgADeQADOAQ",
         "file_id_dm":"AgACAgEAAxkBAAIPmml_GzvtyG5iqClOGjOEbG5NcANxAAI5DGsblFP4R6fkeNHfUeyfAQADAgADeQADOAQ",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -10,9 +10,9 @@ RP_SKINS1 = [
     }
 ]    
 
-RP_SKINS = [
+RP_SKINS1 = [
     {
-        "key": "sz",
+        "hb_key": "sz",
         "file_id_cover": "AgACAgEAAxkBAAMPaX8pAgJj9Am5lLwhmpt-IjS15TsAAjkMaxuUU_hHeBD_jjC7RMYBAAMCAAN5AAM4BA",
         "file_id_dm":"AgACAgEAAxkBAAMYaX8pli19IbAcSImVz5A9khJR4fQAAo-vMRsB4QlFLQIQ_2kV6iEBAAMCAAN3AAM4BA",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -20,7 +20,7 @@ RP_SKINS = [
         "activity_link": "https://t.me/luzai03bot?start=rank",
     },
     {
-        "key": "sh",
+        "hb_key": "sh",
         "file_id_cover": "AgACAgEAAxkBAAMRaX8pMTcP25AIuOE3zfS1QNltH9EAAjoMaxuUU_hHlfkip9gOOb0BAAMCAAN5AAM4BA",
         "file_id_dm":"AgACAgEAAxkBAAMaaX8prgxfNlTDBwxEqHN52ZrcF-EAAo2vMRsB4QlFqMgzjBzJ_FgBAAMCAAN3AAM4BA",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -28,7 +28,7 @@ RP_SKINS = [
         "activity_link": "https://t.me/luzai03bot?start=rank",
     },
     {
-        "key": "bj",
+        "hb_key": "bj",
         "file_id_cover": "AgACAgQAAxkBAAMeaX8qMLYNhN-e2o9TcEBtR0c-JpEAAhAOaxsLYQABUBRvfVCyTOf8AQADAgADeQADOAQ",
         "file_id_dm":"AgACAgEAAxkBAAMcaX8qHJD8Go6OkaE6RK9eZUlRQXsAAouvMRsB4QlFMQTg8YgPHQUBAAMCAAN3AAM4BA",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -36,7 +36,7 @@ RP_SKINS = [
         "activity_link": "https://t.me/luzai03bot?start=rank",
     },
     {
-        "key": "cq",
+        "hb_key": "cq",
         "file_id_cover": "AgACAgQAAxkBAAMgaX8qREZuAfVGZodHJWpOSOKuub4AAhEOaxsLYQABUGRgAd61yMsuAQADAgADeQADOAQ",
         "file_id_dm":"AgACAgEAAxkBAAMiaX8qXDaunuOSf39j0veJHUppHV4AAomvMRsB4QlFwxOpTszodZwBAAMCAAN3AAM4BA",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -44,7 +44,7 @@ RP_SKINS = [
         "activity_link": "https://t.me/luzai03bot?start=rank",
     },
     {
-        "key": "gz",
+        "hb_key": "gz",
         "file_id_cover": "AgACAgQAAxkBAAMkaX8qboIU1nl9bMsPIDifhLpK2IkAAhIOaxsLYQABUE1NPr_qdls8AQADAgADeQADOAQ",
         "file_id_dm":"AgACAgEAAxkBAAMmaX8qieIdGMDc-3a0gnADUd3zflsAAoevMRsB4QlFmyK6BNzUGRYBAAMCAAN3AAM4BA",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -52,7 +52,7 @@ RP_SKINS = [
         "activity_link": "https://t.me/luzai03bot?start=rank",
     },
     {
-        "key": "hk",
+        "hb_key": "hk",
         "file_id_cover": "AgACAgQAAxkBAAMoaX8qmuG81jeoLa8Weyke3mFeNGsAAhQOaxsLYQABUFN07R5KmDjcAQADAgADeQADOAQ",
         "file_id_dm":"AgACAgEAAxkBAAMqaX8qq0Xm3hQgS6x9FbCL1cIJ5TkAAoWvMRsB4QlF7LNB6dmvgYUBAAMCAAN3AAM4BA",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -60,7 +60,7 @@ RP_SKINS = [
         "activity_link": "https://t.me/luzai03bot?start=rank",
     },
     {
-        "key": "ma",
+        "hb_key": "ma",
         "file_id_cover": "AgACAgQAAxkBAAMsaX8qvfqoim0tMFjl9ombZ7BdzPgAAhUOaxsLYQABUJB6khgm5EVwAQADAgADeQADOAQ",
         "file_id_dm":"AgACAgEAAxkBAAMuaX8qzslLBeXJItm3x2K9HhCXCDgAAoKvMRsB4QlFqBn4jyJrPnsBAAMCAAN3AAM4BA",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -68,7 +68,7 @@ RP_SKINS = [
         "activity_link": "https://t.me/luzai03bot?start=rank",
     },
     {
-        "key": "jp",
+        "hb_key": "jp",
         "file_id_cover": "AgACAgQAAxkBAAMwaX8q5cQ71q3J_XwnM-MY7Lq-nEgAAhYOaxsLYQABUGTNLhoed3aYAQADAgADeQADOAQ",
         "file_id_dm":"AgACAgEAAxkBAAMyaX8rA1vS963yHZEvI3K4nxB_egYAAoGvMRsB4QlFAfrYdEem1lkBAAMCAAN3AAM4BA",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -76,7 +76,7 @@ RP_SKINS = [
         "activity_link": "https://t.me/luzai03bot?start=rank",
     },
     {
-        "key": "hlj",
+        "hb_key": "hlj",
         "file_id_cover": "AgACAgQAAxkBAAM0aX8rFY6l4LRGdX_SBb8suKIyTzYAAhcOaxsLYQABUD1LH3n5DIkLAQADAgADeQADOAQ",
         "file_id_dm":"AgACAgEAAxkBAAMTaX8pZE9UFEgBn2UrCsh-Xmy7mcwAAn-vMRsB4QlFgICfX5U-GWQBAAMCAAN3AAM4BA",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -84,7 +84,7 @@ RP_SKINS = [
         "activity_link": "https://t.me/luzai03bot?start=rank",
     },
     {
-        "key": "mg",
+        "hb_key": "mg",
         "file_id_cover": "AgACAgQAAxkBAAM4aX8rQNtWEFyCoDaMwWc1XUire3MAAhgOaxsLYQABUBwq24kiY9keAQADAgADeQADOAQ",
         "file_id_dm":"AgACAgEAAxkBAAM6aX8rUJCFxn6hIeP3UulfizLbhSIAAn2vMRsB4QlFFUfPn1lNMhoBAAMCAAN3AAM4BA",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -92,7 +92,7 @@ RP_SKINS = [
         "activity_link": "https://t.me/luzai03bot?start=rank",
     },
     {
-        "key": "mz",
+        "hb_key": "mz",
         "file_id_cover": "AgACAgQAAxkBAAM8aX8rYL3EB6ajwlywNOd6PGpprOkAAhkOaxsLYQABUBH3k-OuMpCnAQADAgADeQADOAQ",
         "file_id_dm":"AgACAgEAAxkBAAM-aX8rclO0kZIMZJSVawHw79JiONQAAmmvMRsB4QlF9ZNm52tA0Z8BAAMCAAN5AAM4BA",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
@@ -108,7 +108,7 @@ I18N = {
         "btn_claim": "💦 帮龙嵬榨精",
         "btn_redeem": "✅ 吃掉 {amount} 滴精",
         "btn_done": "✅ 已吞食",
-        "btn_expired": "✅ 已过期",
+        "btn_expired": "☑️ 已过期",
         "btn_activity": "🏆 特典链结",
 
         # ---- cmd_rp / validation ----
@@ -132,6 +132,7 @@ I18N = {
         "redeem_fail_expired": "⛔ 领取失败：龙嵬已过期或资格不存在。",
         "redeem_already": "✅ 你已领取过。",
         "redeem_busy": "⏳ 正在处理上一笔领取，请稍后再试。",
+        "redeem_after_talk": "⛔ 领取失败：请先在学院群发言才能领取。(请及早领取避免过期)",
         "redeem_state_bad": "⛔ 领取失败：状态异常。",
         "redeem_ok": "✅ 已领取 {amount} 精值，已入账。",
         "redeem_ok_dup": "✅ 你已领取过（重复点击已忽略）。",
@@ -166,7 +167,7 @@ I18N = {
         "btn_claim": "🧧 抢红包",
         "btn_redeem": "✅ 领取 {amount} 积分",
         "btn_done": "✅ 已领取",
-        "btn_expired": "✅ 已过期",
+        "btn_expired": "☑️ 已过期",
         "btn_activity": "🏆 特典链结",
 
         # ---- cmd_rp / validation ----
@@ -190,6 +191,7 @@ I18N = {
         "redeem_fail_expired": "⛔ 领取失败：红包已过期或资格不存在（已充公）。",
         "redeem_already": "✅ 你已领取过。",
         "redeem_busy": "⏳ 正在处理上一笔领取，请稍后再试。",
+        "redeem_after_talk": "⛔ 领取失败：请先在学院群发言才能领取。(请及早领取避免过期)",
         "redeem_state_bad": "⛔ 领取失败：状态异常。",
         "redeem_ok": "✅ 已领取 {amount} 积分，已入账。",
         "redeem_ok_dup": "✅ 你已领取过（重复点击已忽略）。",
@@ -224,8 +226,8 @@ I18N = {
         "btn_claim": "🧧 Grab",
         "btn_redeem": "✅ Redeem {amount}",
         "btn_done": "✅ Redeemed",
-        "btn_expired": "✅ 已过期",
-        "btn_activity": "🏆 特典链结",
+        "btn_expired": "☑️ Expired",
+        "btn_activity": "🏆 Activity Link",
 
         "rp_group_only": "Create in group: /rp <total> <count> [minutes]",
         "rp_usage": "Usage: /rp <total> <count> [minutes]\nExample: /rp 100 10 5",
@@ -245,6 +247,7 @@ I18N = {
         "redeem_fail_expired": "⛔ Failed: expired / no eligibility (confiscated).",
         "redeem_already": "✅ You already redeemed.",
         "redeem_busy": "⏳ Previous redeem in progress, try later.",
+        "redeem_after_talk": "⛔ Failed: please talk in the group first. (Redeem early to avoid expiry)",
         "redeem_state_bad": "⛔ Failed: bad state.",
         "redeem_ok": "✅ Redeemed {amount}.",
         "redeem_ok_dup": "✅ Already redeemed (ignored).",
