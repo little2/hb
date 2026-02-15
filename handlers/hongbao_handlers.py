@@ -88,6 +88,21 @@ def kb_redeem(hid: int, amount: int, lang: str, activity_link: str | None = None
 
     return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
+
+def kb_expired(lang: str, activity_link: str | None = None) -> InlineKeyboardMarkup:
+    buttons = [
+        InlineKeyboardButton(
+            text=tr(lang, "btn_expired"),
+            callback_data="hb_expired"
+        )
+    ]
+    if activity_link:
+        buttons.append(InlineKeyboardButton(
+            text=tr(lang, "btn_activity"),
+            url=activity_link
+        ))
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])
+
 def kb_done(lang: str, activity_link: str | None = None) -> InlineKeyboardMarkup:
     buttons = [
         InlineKeyboardButton(
@@ -474,6 +489,10 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
 
     if code == -2:
         await callback.message.answer(tr(lang, "redeem_fail_expired"))
+        try:
+            await callback.message.edit_reply_markup(reply_markup=kb_expired(lang=lang, activity_link=skin.get("activity_link")))
+        except TelegramBadRequest:
+            pass
         return
 
     if code == 2:
@@ -523,6 +542,15 @@ async def cb_done(callback: CallbackQuery, ctx: AppCtx):
         await callback.answer(tr(lang, "redeem_ok_dup"), show_alert=False)
     except TelegramBadRequest:
         pass
+
+@router.callback_query(F.data == "hb_expired")
+async def cb_expired(callback: CallbackQuery, ctx: AppCtx):
+    lang = ctx.lang
+    try:
+        await callback.answer(tr(lang, "redeem_fail_expired"), show_alert=False)
+    except TelegramBadRequest:
+        pass
+
 
 def _parse_base(old_text: str, lang: str):
     RE_TOTAL, RE_COUNT, RE_HEADER, RE_SN, RE_TIME, _RE_ITEM  = get_patterns(lang)

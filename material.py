@@ -108,6 +108,7 @@ I18N = {
         "btn_claim": "💦 帮龙嵬榨精",
         "btn_redeem": "✅ 吃掉 {amount} 滴精",
         "btn_done": "✅ 已吞食",
+        "btn_expired": "✅ 已过期",
         "btn_activity": "🏆 特典链结",
 
         # ---- cmd_rp / validation ----
@@ -164,6 +165,7 @@ I18N = {
         "btn_claim": "🧧 抢红包",
         "btn_redeem": "✅ 领取 {amount} 积分",
         "btn_done": "✅ 已领取",
+        "btn_expired": "✅ 已过期",
         "btn_activity": "🏆 特典链结",
 
         # ---- cmd_rp / validation ----
@@ -220,6 +222,7 @@ I18N = {
         "btn_claim": "🧧 Grab",
         "btn_redeem": "✅ Redeem {amount}",
         "btn_done": "✅ Redeemed",
+        "btn_expired": "✅ 已过期",
         "btn_activity": "🏆 特典链结",
 
         "rp_group_only": "Create in group: /rp <total> <count> [minutes]",
