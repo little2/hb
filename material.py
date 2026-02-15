@@ -1,5 +1,5 @@
 
-RP_SKINS1 = [
+RP_SKINS = [
     {
         "hb_key": "sz",
         "file_id_cover": "AgACAgEAAxkBAAIPmml_GzvtyG5iqClOGjOEbG5NcANxAAI5DGsblFP4R6fkeNHfUeyfAQADAgADeQADOAQ",
@@ -10,7 +10,7 @@ RP_SKINS1 = [
     }
 ]    
 
-RP_SKINS = [
+RP_SKINS1 = [
     {
         "hb_key": "sz",
         "file_id_cover": "AgACAgEAAxkBAAMPaX8pAgJj9Am5lLwhmpt-IjS15TsAAjkMaxuUU_hHeBD_jjC7RMYBAAMCAAN5AAM4BA",
@@ -118,13 +118,14 @@ I18N = {
         "rp_count_range": "可射数必须在 1~{max_count}。",
         "rp_total_too_small": "总精值必须 >= 可射数*{min_unit}（至少每次 {min_unit}）。",
         "rp_expire_invalid": "有效分钟必须 > 0。",
+        "re_insufficient_funds": "❌ 召唤失败：余额不足。你的积分可能过低，无法召唤龙嵬。请检查你的余额并重试。",
 
         # ---- claim flow ----
         "cb_processing": "处理中…",
         "hb_not_found": "⛔ 龙嵬不存在或已消灭。",
         "already_claimed": "你已榨过（重复点击将忽略）",
         "too_late": "🫥 手慢了，龙嵬已射完。",
-        "dm_blocked": "⚠️ 我无法私信你，请先私聊我发送 /start 开通私信。",
+        "dm_blocked": "⚠️ 我无法私信你，请先私聊我发送 /start 开通私信，你才能获得龙精。",
         "dm_got": "💦 你撸出 {amount} 精值！",
 
         # ---- redeem flow ----
@@ -177,13 +178,14 @@ I18N = {
         "rp_count_range": "份数必须在 1~{max_count}。",
         "rp_total_too_small": "总积分必须 >= 份数*{min_unit}（至少每份 {min_unit}）。",
         "rp_expire_invalid": "有效分钟必须 > 0。",
+        "re_insufficient_funds": "❌ 发送失败：余额不足。你的账户积分可能过低，无法创建红包。请检查你的余额并重试。",
 
         # ---- claim flow ----
         "cb_processing": "处理中…",
         "hb_not_found": "⛔ 红包不存在或已过期。",
         "already_claimed": "你已抢过（重复点击已忽略）",
         "too_late": "🫥 手慢了，红包已抢完。",
-        "dm_blocked": "⚠️ 我无法私信你，请先私聊我发送 /start 开通私信。",
+        "dm_blocked": "⚠️ 我无法私信你，请先私聊我发送 /start 开通私信，你才能获得红包。",
         "dm_got": "🧧 你抢到 {amount} 积分！。",
 
         # ---- redeem flow ----
@@ -235,6 +237,7 @@ I18N = {
         "rp_count_range": "Count must be 1~{max_count}.",
         "rp_total_too_small": "Total must be >= count*{min_unit} (min {min_unit} each).",
         "rp_expire_invalid": "Minutes must be > 0.",
+        "re_insufficient_funds": "❌ Refund failed: insufficient funds. Your account points may be too low to create a hongbao. Please check your balance and try again.",
 
         "cb_processing": "Processing…",
         "hb_not_found": "⛔ Not found / expired (confiscated).",

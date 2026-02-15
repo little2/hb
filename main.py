@@ -9,9 +9,7 @@ from typing import Any, Awaitable, Callable, Dict
 from utils.db.tgone_mysql import MySQLPool
 
 from config import BOT_MODE
-
 from config import WEBHOOK_HOST, WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT, WEBHOOK_SECRET
-
 from config import BOT_TOKEN, REDIS_URL, MYSQL_DB, MYSQL_USER, MYSQL_PASSWORD, MYSQL_UNIX_SOCKET
 assert BOT_TOKEN, "BOT_TOKEN is required"
 assert REDIS_URL, "REDIS_URL is required"
@@ -20,10 +18,6 @@ assert MYSQL_DB, "MYSQL_DB_NAME is required"
 from infra.redis_layer import RedisLayer
 from handlers.hongbao_handlers import router
 from handlers.hongbao_handlers import AppCtx
-
-
-
-
 
 class CtxMiddleware(BaseMiddleware):
     def __init__(self, ctx: AppCtx):

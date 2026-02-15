@@ -54,6 +54,10 @@ router = Router()
 # from aiogram import Router, F
 # from aiogram.types import Message
 
+@router.message(F.pinned_message)
+async def delete_pin_service(message: Message):
+    await message.delete()
+
 @router.message(F.chat.type == ChatType.PRIVATE, F.photo)
 async def on_photo(message: Message):
     # message.photo 是 List[PhotoSize]
@@ -148,95 +152,6 @@ async def cmd_rp(message: Message, ctx: AppCtx):
 
     await _do_create_hongbao(ctx, lang, message, total_count, total_amount, expire_minutes, skin)
 
-    # if total_count <= 0 or total_count > MAX_COUNT:
-    #     await message.reply(tr(lang, "rp_count_range", max_count=MAX_COUNT))
-    #     return
-    # if total_amount < total_count * MIN_UNIT:
-    #     await message.reply(tr(lang, "rp_total_too_small", min_unit=MIN_UNIT))
-    #     return
-    # if expire_minutes <= 0:
-    #     await message.reply(tr(lang, "rp_expire_invalid"))
-    #     return
-
-    # sender_id = message.from_user.id if message.from_user else 0
-    # chat_id = message.chat.id
-
-    # now = datetime.now()
-    # expire_at = now + timedelta(minutes=expire_minutes)
-    # ttl_sec = max(1, int((expire_at - now).total_seconds()))
-
-    # hid = await HongbaoService.create_hongbao(sender_id, chat_id, total_amount, total_count, expire_at)
-    # if hid <= 0:
-    #     await message.reply(tr(lang, "redeem_busy"))
-    #     return
-
-
-    # amounts = split_amounts(total_amount, total_count, MIN_UNIT)
-    # await ctx.r.init_list(hid, amounts, ttl_sec)
-
-    # # created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # skin = pick_rp_skin()
-    # await ctx.r.set_hb_skin(hid, skin["hb_key"], ttl_sec)
-
-    # sender_name = _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
-
-    # line = [
-    #     "<blockquote>"+tr(lang, "post_title", sender=sender_name)+"</blockquote>",
-    # ]
-
-
-    # if skin["intro_text"]:
-    #     line += [
-    #         "",
-    #         f"<i>💬 {(skin['intro_text'])}</i>",
-    #         "",
-    #     ]
-
-    # line += [
-    #     tr(lang, "post_total", total_amount=total_amount),
-    #     tr(lang, "post_count", total_count=total_count),
-    #     tr(lang, "post_sn", sn=hid),
-    #     tr(lang, "post_time", created_at=created_at),
-    #     "",
-    #     tr(lang, "post_stat_amount", claimed_amount=0, total_amount=total_amount),
-    #     tr(lang, "post_stat_count", claimed_count=0, total_count=total_count),
-    #     "",
-    #     "<blockquote>"+tr(lang, "post_list_title")+"</blockquote>",
-    #     "",
-    # ]
-
-    # text ="\n".join(line)
-
-
-
-
-    # # sent = await message.answer(text, reply_markup=kb_claim(hid, lang))
-    # try:
-    #     sent = await message.answer_photo(
-    #         photo=skin["file_id_cover"],
-    #         caption=text,
-    #         reply_markup=kb_claim(hid, lang),
-    #         parse_mode="HTML",
-    #     )
-    # except Exception as e:
-    #     await message.reply(f"❌ 发送红包消息失败：{e}")
-    #     return
-
-    # await HongbaoService.bind_message(hid, sent.message_id)
-
-    # # ======= Pin 消息到群组 =======
-    # try:
-    #     await ctx.bot.pin_chat_message(
-    #         chat_id=message.chat.id,
-    #         message_id=sent.message_id,
-    #         disable_notification=True,  # 不发送通知
-    #     )
-    # except TelegramBadRequest as e:
-    #     # pin 失败不影响红包功能，仅记录（可选）
-    #     pass
-    # except Exception as e:
-    #     pass
 
 async def _do_create_hongbao(ctx: AppCtx, lang: str,  message: Message,  total_count: int, total_amount: int, expire_minutes: int,skin: dict):
 
@@ -257,75 +172,90 @@ async def _do_create_hongbao(ctx: AppCtx, lang: str,  message: Message,  total_c
     expire_at = now + timedelta(minutes=expire_minutes)
     ttl_sec = max(1, int((expire_at - now).total_seconds()))
 
-    hid = await HongbaoService.create_hongbao(sender_id, chat_id, total_amount, total_count, expire_at, skin)
-    if hid <= 0:
-        await message.reply(tr(lang, "redeem_busy"))
+    transaction_description = f"{message.chat.id}_{message.message_id}"
+
+    ret_refund = await HongbaoService.transaction_log({
+        "sender_id": sender_id,
+        "sender_fee": -1 * total_amount,
+        "receiver_id": 0,
+        "receiver_fee": 0,
+        "transaction_type": "hongbao",
+        "transaction_description": transaction_description
+    })
+
+    if ret_refund["status"] == "insufficient_funds":
+        await message.reply(tr(lang, "re_insufficient_funds"))
         return
+    elif ret_refund['status'] == 'insert' or ret_refund['status'] == 'exist':
+        hid = await HongbaoService.create_hongbao(sender_id, chat_id, total_amount, total_count, expire_at, skin)
+        if hid <= 0:
+            await message.reply(tr(lang, "redeem_busy"))
+            return
 
-    await ctx.r.set_hb_skin(hid, skin["hb_key"], ttl_sec)
+        await ctx.r.set_hb_skin(hid, skin["hb_key"], ttl_sec)
 
-    amounts = split_amounts(total_amount, total_count, MIN_UNIT)
-    await ctx.r.init_list(hid, amounts, ttl_sec)
-
-
-    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sender_name = _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
-
-    line = [
-        "<blockquote>"+tr(lang, "post_title", sender=sender_name)+"</blockquote>",
-    ]
+        amounts = split_amounts(total_amount, total_count, MIN_UNIT)
+        await ctx.r.init_list(hid, amounts, ttl_sec)
 
 
-    if skin["intro_text"]:
+        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sender_name = _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
+
+        line = [
+            "<blockquote>"+tr(lang, "post_title", sender=sender_name)+"</blockquote>",
+        ]
+
+
+        if skin["intro_text"]:
+            line += [
+                "",
+                f"<i>💬 {(skin['intro_text'])}</i>",
+                "",
+            ]
+
         line += [
+            tr(lang, "post_total", total_amount=total_amount),
+            tr(lang, "post_count", total_count=total_count),
+            tr(lang, "post_sn", sn=hid),
+            tr(lang, "post_time", created_at=created_at),
             "",
-            f"<i>💬 {(skin['intro_text'])}</i>",
+            tr(lang, "post_stat_amount", claimed_amount=0, total_amount=total_amount),
+            tr(lang, "post_stat_count", claimed_count=0, total_count=total_count),
+            "",
+            "<blockquote>"+tr(lang, "post_list_title")+"</blockquote>",
             "",
         ]
 
-    line += [
-        tr(lang, "post_total", total_amount=total_amount),
-        tr(lang, "post_count", total_count=total_count),
-        tr(lang, "post_sn", sn=hid),
-        tr(lang, "post_time", created_at=created_at),
-        "",
-        tr(lang, "post_stat_amount", claimed_amount=0, total_amount=total_amount),
-        tr(lang, "post_stat_count", claimed_count=0, total_count=total_count),
-        "",
-        "<blockquote>"+tr(lang, "post_list_title")+"</blockquote>",
-        "",
-    ]
+        text ="\n".join(line)
+        # sent = await message.answer(text, reply_markup=kb_claim(hid, lang))
+        try:
+            sent = await message.answer_photo(
+                photo=skin["file_id_cover"],
+                caption=text,
+                reply_markup=kb_claim(hid, lang),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            await message.reply(f"❌ 发送红包消息失败：{e}")
+            return
 
-    text ="\n".join(line)
-    # sent = await message.answer(text, reply_markup=kb_claim(hid, lang))
-    try:
-        sent = await message.answer_photo(
-            photo=skin["file_id_cover"],
-            caption=text,
-            reply_markup=kb_claim(hid, lang),
-            parse_mode="HTML",
-        )
-    except Exception as e:
-        await message.reply(f"❌ 发送红包消息失败：{e}")
+        await HongbaoService.bind_message(hid, sent.message_id)
+
+        # ======= Pin 消息到群组 =======
+        try:
+            await ctx.bot.pin_chat_message(
+                chat_id=message.chat.id,
+                message_id=sent.message_id,
+                disable_notification=True,  # 不发送通知
+            )
+        except TelegramBadRequest as e:
+            # pin 失败不影响红包功能，仅记录（可选）
+            pass
+        except Exception as e:
+            pass
+        pass
+    else:
         return
-
-    await HongbaoService.bind_message(hid, sent.message_id)
-
-     # ======= Pin 消息到群组 =======
-    try:
-        await ctx.bot.pin_chat_message(
-            chat_id=message.chat.id,
-            message_id=sent.message_id,
-            disable_notification=True,  # 不发送通知
-        )
-    except TelegramBadRequest as e:
-        # pin 失败不影响红包功能，仅记录（可选）
-        pass
-    except Exception as e:
-        pass
-    pass
-
-
 @router.callback_query(F.data.startswith("hb_claim:"))
 async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     # 先秒回，避免 Telegram callback 超时
