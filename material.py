@@ -149,6 +149,7 @@ I18N = {
         "post_king": "👑 撸王：{name} 撸出了 {amt} 滴精",
         "post_item": "- {name} 撸出了 {amt} 滴精 ({cost})",
         "post_finished": "✨ 已全部撸完呀！",
+        "post_expired": "✨ 已过期！",
         "default_someone": "有人",
 
         # ---- regex patterns (must match above lines) ----
@@ -178,7 +179,7 @@ I18N = {
 
         # ---- claim flow ----
         "cb_processing": "处理中…",
-        "hb_not_found": "⛔ 红包不存在或已过期（已充公）。",
+        "hb_not_found": "⛔ 红包不存在或已过期。",
         "already_claimed": "你已抢过（重复点击已忽略）",
         "too_late": "🫥 手慢了，红包已抢完。",
         "dm_blocked": "⚠️ 我无法私信你，请先私聊我发送 /start 开通私信。",
@@ -206,6 +207,7 @@ I18N = {
         "post_king": "👑 运气王：{name} 抢到了 {amt} 积分",
         "post_item": "- {name} 抢到了 {amt} 积分 ({cost})",
         "post_finished": "✨ 已全部抢完呀！",
+        "post_expired": "✨ 已过期！",
         "default_someone": "有人",
 
         # ---- regex patterns (must match above lines) ----
@@ -259,6 +261,7 @@ I18N = {
         "post_king": "👑 Luckiest: {name} got {amt}",
         "post_item": "- {name} got {amt} ({cost})",
         "post_finished": "✨ All grabbed!",
+        "post_expired": "✨ Expired!",
         "default_someone": "Someone",
 
         "re_total": r"^🎁\s*Total:\s*(\d+)\s*$",

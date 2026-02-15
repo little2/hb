@@ -292,7 +292,6 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         )
 
     skin_key = await ctx.r.get_hb_skin(hid)
-
     skin = next((s for s in RP_SKINS if s["key"] == skin_key), None)
 
     if base_msg:
@@ -381,11 +380,13 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
         if is_empty:
             lines += ["", tr(lang, "post_finished")]
+        elif code == -2:
+            lines += ["", tr(lang, "post_expired")]
 
         new_text = "\n".join(lines)
 
         # 抢完：隐藏抢按钮，只保留活动按钮（如果有）
-        if is_empty:
+        if is_empty or code == -2:
             if skin.get("activity_link"):
                 new_reply_markup = InlineKeyboardMarkup(
                     inline_keyboard=[[
