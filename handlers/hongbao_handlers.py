@@ -154,8 +154,8 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
             clt_id = int(cid_str) if cid_str.isdigit() else 0
             print(f"Parsed clt_id: {message}", flush=True)
             msg = {
-                "chat_id": -1003243830718, 
-                "message_thread_id": 2, 
+                "chat_id": -1001943193056, 
+                "message_thread_id": 46220, 
                 "sender_id": message.from_user.id if message.from_user else 0,
                 "message_id": message.message_id if message.message_id else 0,
                 "sender_name": _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
@@ -255,8 +255,8 @@ async def _do_create_promote(clt_id: int, ctx: AppCtx , msg: Message | None = No
         }
   
     hongbao = {
-        "total_count": 1,
-        "total_amount": 1,
+        "total_count": 7,
+        "total_amount": 34,
         "expire_minutes": 60*24,
         "skin": skin,
     }
