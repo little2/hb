@@ -132,6 +132,7 @@ class AppCtx:
 
 @router.message(Command("start"))
 async def handle_start(message: Message,  command: Command = Command("start"), ctx: AppCtx = None):
+    lang = ctx.lang
     print(f"Received /start command: {message.text}", flush=True)
     try:
         if message.text and message.text == "/start":
@@ -152,7 +153,8 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
             print(f"Received start with clt param: {param} {parts[1]}", flush=True)
             cid_str = parts[1]
             clt_id = int(cid_str) if cid_str.isdigit() else 0
-            print(f"Parsed clt_id: {message}", flush=True)
+            print(f"===>message: {message}", flush=True)
+            
             msg = {
                 "chat_id": -1001943193056, 
                 "message_thread_id": 46220, 
@@ -160,7 +162,8 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
                 "message_id": message.message_id if message.message_id else 0,
                 "sender_name": _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
             }
-        
+            print(f"===>msg: {msg}", flush=True)
+           
             await _do_create_promote(clt_id, ctx, msg)
             await ctx.bot.send_message(chat_id=message.chat.id, text="推广成功发送至大群！")
 
@@ -241,7 +244,7 @@ async def cmd_pushclt(message: Message, ctx: AppCtx):
     await _do_create_promote(clt_id, ctx, msg)
     
 
-async def _do_create_promote(clt_id: int, ctx: AppCtx , msg: Message | None = None):
+async def _do_create_promote(clt_id: int, ctx: AppCtx , msg: dict | None = None):
     print(f"Creating promote for clt_id={clt_id} by user_id={msg['sender_id'] if msg else 'N/A'}", flush=True)
     clt_row = await HongbaoService.get_user_collection(id=clt_id)
 
@@ -269,7 +272,7 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
     total_amount = hongbao["total_amount"]
     expire_minutes = hongbao["expire_minutes"]
     skin = hongbao["skin"]
-
+    print(f"msg====>{msg}")
     if total_count <= 0 or total_count > MAX_COUNT:
         await ctx.bot.send_message(chat_id=msg["chat_id"], message_thread_id=msg["message_thread_id"], text=tr(lang, "rp_count_range", max_count=MAX_COUNT))
         return
@@ -342,6 +345,7 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
         ]
 
         text ="\n".join(line)
+        print(f"Generated hongbao message:\n{text}", flush=True)
         # sent = await message.answer(text, reply_markup=kb_claim(hid, lang))
         try:
             sent = await ctx.bot.send_photo(
