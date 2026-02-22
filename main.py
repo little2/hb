@@ -7,13 +7,16 @@ from aiogram.dispatcher.middlewares.base import BaseMiddleware
 from aiogram.types import TelegramObject
 from typing import Any, Awaitable, Callable, Dict
 from utils.db.tgone_mysql import MySQLPool
-
 from config import BOT_MODE
 from config import WEBHOOK_HOST, WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT, WEBHOOK_SECRET
-from config import BOT_TOKEN, REDIS_URL, MYSQL_DB, MYSQL_USER, MYSQL_PASSWORD, MYSQL_UNIX_SOCKET
+from config import X_MAN_BOT_ID, BOT_TOKEN, REDIS_URL, MYSQL_DB, MYSQL_USER, MYSQL_PASSWORD, MYSQL_UNIX_SOCKET
+import lz_var
+from utils.tpl import Tplate
+
 assert BOT_TOKEN, "BOT_TOKEN is required"
 assert REDIS_URL, "REDIS_URL is required"
 assert MYSQL_DB, "MYSQL_DB_NAME is required"
+import lz_var 
 
 from infra.redis_layer import RedisLayer
 from handlers.hongbao_handlers import router
@@ -33,6 +36,48 @@ class CtxMiddleware(BaseMiddleware):
         data["ctx"] = self.ctx
         return await handler(event, data)
 
+
+async def load_templates(ctx: AppCtx):
+    import os
+    import json
+
+    bot_info = await ctx.bot.get_me()
+    bot_name = bot_info.username
+    lz_var.bot = ctx.bot
+    lz_var.bot_username = bot_name
+    lz_var.bot_id = bot_info.id
+    lz_var.x_man_bot_id = X_MAN_BOT_ID
+    config_path = f"{bot_name}_skins.json"
+    # print(f"🔍 载入或生成皮肤配置文件：{config_path}")
+
+    load_result = await Tplate.load_or_create_skins( get_file_ids_fn=MySQLPool.get_file_id_by_file_unique_id)
+    if(load_result.get("ok") == 1):
+        lz_var.skins = load_result.get("skins", {})
+       
+    else:
+        print(f"⚠️ 加载皮肤失败: {load_result.get('handshake')}", flush=True)
+
+
+    # 默认注入 PGPool（外部可传入别的实现）
+    default_skins = {
+        "push_cover": {"file_id": "", "file_unique_id": "AQAD9wtrG3ZWyER-"}
+    }
+
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                skins = json.load(f)
+                # print(f"✅ 载入已有皮肤配置文件：{skins}")
+        except Exception as e:
+            print(f"⚠️ 无法读取 {config_path}，将重新生成：{e}")
+            skins = default_skins.copy()
+    else:
+        skins = default_skins.copy()
+
+    # --- 写入文件（即便有缺） ---
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(skins, f, ensure_ascii=False, indent=4)
+    return {"ok":1, "skins": skins}
 
 async def build_app() -> tuple[Bot, Dispatcher, RedisLayer]:
     bot = Bot(BOT_TOKEN)
@@ -66,6 +111,13 @@ async def build_app() -> tuple[Bot, Dispatcher, RedisLayer]:
         raise
 
     ctx = AppCtx(r=rlayer, bot=bot)
+
+    bot_info = await bot.get_me()
+    print(f"Bot started as @{bot_info.username} (id: {bot_info.id})")
+
+    ret = await load_templates(ctx)  # 预先加载模板（可选，首次运行会生成默认文件）
+    print(f"Template load result: {ret}")
+
     dp.update.outer_middleware(CtxMiddleware(ctx))
     dp.include_router(router)
     return bot, dp, rlayer
@@ -121,8 +173,9 @@ async def run_webhook(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
 async def main():
     bot, dp, rlayer = await build_app()
 
-    bot_info = await bot.get_me()
-    print(f"Bot started as @{bot_info.username} (id: {bot_info.id})")
+
+
+    
 
     if BOT_MODE == "polling":
         await run_polling(bot, dp, rlayer)

@@ -52,3 +52,5 @@ DEFAULT_EXPIRE_MINUTES = int(os.getenv("DEFAULT_EXPIRE_MINUTES", "180"))
 GROUP_NOTICE_THROTTLE = os.getenv("GROUP_NOTICE_THROTTLE", "1") == "1"
 GROUP_NOTICE_PER_SEC = int(os.getenv("GROUP_NOTICE_PER_SEC", "2"))
 DM_BLOCK_TTL_SEC = int(os.getenv("DM_BLOCK_TTL_SEC", "60"))
+
+X_MAN_BOT_ID = int(os.getenv("X_MAN_BOT_ID", 0))

@@ -1,5 +1,5 @@
 
-RP_SKINS1 = [
+RP_SKINS = [
     {
         "hb_key": "sz",
         "file_id_cover": "AgACAgEAAxkBAAIPmml_GzvtyG5iqClOGjOEbG5NcANxAAI5DGsblFP4R6fkeNHfUeyfAQADAgADeQADOAQ",
@@ -10,7 +10,7 @@ RP_SKINS1 = [
     }
 ]    
 
-RP_SKINS = [
+RP_SKINS1 = [
     {
         "hb_key": "sz",
         "file_id_cover": "AgACAgEAAxkBAAMPaX8pAgJj9Am5lLwhmpt-IjS15TsAAjkMaxuUU_hHeBD_jjC7RMYBAAMCAAN5AAM4BA",
@@ -106,10 +106,10 @@ I18N = {
     "zh": {
         # ---- buttons ----
         "btn_claim": "💦 帮龙嵬榨精",
-        "btn_redeem": "✅ 吃掉 {amount} 滴精",
-        "btn_done": "✅ 已吞食",
+        "btn_redeem": "🎁 领取 {amount} 滴龙精",
+        "btn_done": "✅ 已取得龙精",
         "btn_expired": "☑️ 已过期",
-        "btn_activity": "🏆 特典链结",
+        "btn_activity": "🏆 推广链结",
 
         # ---- cmd_rp / validation ----
         "rp_group_only": "请在群里召唤龙嵬：/rp <精值> <可射数 >",
@@ -126,7 +126,7 @@ I18N = {
         "already_claimed": "你已榨过（重复点击将忽略）",
         "too_late": "🫥 手慢了，龙嵬已射完。",
         "dm_blocked": "⚠️ 我无法私信你，请先私聊我发送 /start 开通私信，你才能获得龙精。",
-        "dm_got": "💦 你撸出 {amount} 精值！",
+        "dm_got": "💦 你撸出 {amount} 精值！龙精可折扺积分。(限当日有效)",
 
         # ---- redeem flow ----
         "redeem_processing": "入账中…",
@@ -135,19 +135,19 @@ I18N = {
         "redeem_busy": "⏳ 正在处理上一笔领取，请稍后再试。",
         "redeem_after_talk": "⛔ 领取失败：请先在学院群发言才能领取。(请及早领取避免过期)",
         "redeem_state_bad": "⛔ 领取失败：状态异常。",
-        "redeem_ok": "✅ 已领取 {amount} 精值，已入账。",
+        "redeem_ok": "✅ 已领取 {amount} 精值，已入账。龙精等同积分，兑换资源可折抵(限当天有效)！",
         "redeem_ok_dup": "✅ 你已领取过（重复点击已忽略）。",
         "redeem_fail": "❌ 入账失败：{msg}\n请稍后重试（过期前有效）。",
 
         # ---- hongbao post format ----
-        "post_title": "🏮 {sender}  带来了四个需要撸撸的龙嵬啦～",
+        "post_title": "🏮 {sender}  推荐了资源以及需要撸撸的龙嵬啦～",
         "post_total": "🛡️ 精量：{total_amount} ",
         "post_count": "💦 可射数：{total_count}（拼技巧）",
         "post_sn": "HB_SN: {sn}",
         "post_time": "⏰ {created_at}",
         "post_stat_amount": "🛡️ 已撸出精液数：{claimed_amount}/{total_amount} ",
         "post_stat_count": "💦 已撸射的次数：{claimed_count}/{total_count} 次",
-        "post_list_title": "💖 热心撸夫名单：",
+        "post_list_title": "💖 取得龙精(折扣)名单：",
         "post_king": "👑 撸王：{name} 撸出了 {amt} 滴精",
         "post_item": "- {name} 撸出了 {amt} 滴精 ({cost})",
         "post_finished": "✨ 已全部撸完呀！",

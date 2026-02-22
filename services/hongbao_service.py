@@ -79,10 +79,14 @@ class HongbaoService:
 
     @staticmethod
     async def get_hongbao(hongbao_id: int) -> dict | None:
-        row = await MySQLPool.fetchone(
-            "SELECT * FROM hongbao WHERE id=%s",
-            (hongbao_id,)
-        )
+        key = f"hongbao:{hongbao_id}"
+        row = MySQLPool.cache.get(key)
+        if row is None:
+            row = await MySQLPool.fetchone(
+                "SELECT * FROM hongbao WHERE id=%s",
+                (hongbao_id,)
+            )
+            MySQLPool.cache.set(key, row, ttl=300)  # 缓存 5 分钟
         return row  # 返回 dict 或 None
 
     @staticmethod
@@ -91,6 +95,15 @@ class HongbaoService:
         row = await MySQLPool.fetchone(
             "SELECT * FROM contribute_today WHERE user_id=%s AND stat_date=%s",
             (user_id, stat_date)
+        )
+        return row  # 返回 dict 或 None
+
+
+    @staticmethod
+    async def get_user_collection(id: int) -> dict | None:
+        row = await MySQLPool.fetchone(
+            "SELECT * FROM user_collection WHERE id=%s",
+            (id,)
         )
         return row  # 返回 dict 或 None
 

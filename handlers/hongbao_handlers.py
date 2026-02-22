@@ -6,9 +6,9 @@ from aiogram import Router, F
 from aiogram.enums import ChatType
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError,TelegramAPIError,TelegramNotFound,TelegramMigrateToChat, TelegramRetryAfter
 from aiogram.utils.formatting import Text
-
+import lz_var
 import re
 
 import html
@@ -127,6 +127,42 @@ class AppCtx:
     r: RedisLayer
     bot: any
     lang: str = "zh"   
+    skin : dict | None = None
+
+
+@router.message(Command("start"))
+async def handle_start(message: Message,  command: Command = Command("start"), ctx: AppCtx = None):
+    print(f"Received /start command: {message.text}", flush=True)
+    try:
+        if message.text and message.text == "/start":
+            pass
+        else:
+            await message.delete()
+    except (TelegramAPIError, TelegramBadRequest, TelegramForbiddenError, TelegramNotFound, TelegramMigrateToChat, TelegramRetryAfter) as e:
+        print(f"❌ 删除 /start 消息失败: {e}", flush=True)
+
+
+    user_id = message.from_user.id
+    # 获取 start 后面的参数（如果有）
+    args = message.text.split(maxsplit=1)
+    if len(args) > 1:
+        param = args[1].strip()
+        parts = param.split("_")
+        if parts[0] == "clt":
+            print(f"Received start with clt param: {param} {parts[1]}", flush=True)
+            cid_str = parts[1]
+            clt_id = int(cid_str) if cid_str.isdigit() else 0
+            print(f"Parsed clt_id: {message}", flush=True)
+            msg = {
+                "chat_id": -1003243830718, 
+                "message_thread_id": 2, 
+                "sender_id": message.from_user.id if message.from_user else 0,
+                "message_id": message.message_id if message.message_id else 0,
+                "sender_name": _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
+            }
+        
+            await _do_create_promote(clt_id, ctx, msg)
+            await ctx.bot.send_message(chat_id=message.chat.id, text="推广成功发送至大群！")
 
 @router.message(Command("rp"))
 async def cmd_rp(message: Message, ctx: AppCtx):
@@ -150,29 +186,108 @@ async def cmd_rp(message: Message, ctx: AppCtx):
 
     skin = pick_rp_skin()
 
-    await _do_create_hongbao(ctx, lang, message, total_count, total_amount, expire_minutes, skin)
+
+    
+
+    
+    msg = {
+        "chat_id": message.chat.id, 
+        "message_thread_id": message.message_thread_id, 
+        "sender_id": message.from_user.id if message.from_user else 0,
+        "message_id": message.message_id if message.message_id else 0,
+        "sender_name": _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
+        }
+    
+    hongbao = {
+        "total_count": total_count,
+        "total_amount": total_amount,
+        "expire_minutes": expire_minutes,
+        "skin": skin,
+    }
+
+    await _do_create_hongbao(ctx, msg, hongbao)
+
+@router.message(Command("pushclt"))
+async def cmd_pushclt(message: Message, ctx: AppCtx):
+
+    lang = ctx.lang
+    print(f"Received /pushclt command: {message.text}", flush=True)
+    # if message.chat.type in ("group", "supergroup"):
+    #     await message.reply("私信使用")
+    #     return
+
+    parts = (message.text or "").split()
+    if len(parts) < 2:
+        await message.reply(tr(lang, "rp_usage"))
+        return
+
+    try:
+        clt_id = int(parts[1])
+        
 
 
-async def _do_create_hongbao(ctx: AppCtx, lang: str,  message: Message,  total_count: int, total_amount: int, expire_minutes: int,skin: dict):
+    except ValueError:
+        await message.reply(tr(lang, "rp_param_int"))
+        return
+   
+    msg = {
+        "chat_id": -1003815882738, 
+        "message_thread_id": 0, 
+        "sender_id": message.from_user.id if message.from_user else 0,
+        "message_id": message.message_id if message.message_id else 0,
+        "sender_name": _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
+    }
+   
+    await _do_create_promote(clt_id, ctx, msg)
+    
+
+async def _do_create_promote(clt_id: int, ctx: AppCtx , msg: Message | None = None):
+    print(f"Creating promote for clt_id={clt_id} by user_id={msg['sender_id'] if msg else 'N/A'}", flush=True)
+    clt_row = await HongbaoService.get_user_collection(id=clt_id)
+
+    skin = {
+            "hb_key": f"clt{clt_id}",
+            "file_id_cover": lz_var.skins.get("push_cover", {}).get("file_id", ""),
+            "file_id_dm":lz_var.skins.get("push_cover", {}).get("file_id", ""),
+            "intro_text": clt_row.get("description"),
+            "dm_text": clt_row.get("description"),
+            "activity_link": f"https://t.me/{lz_var.publish_bot_name}?start=clt_{clt_id}",
+        }
+  
+    hongbao = {
+        "total_count": 1,
+        "total_amount": 1,
+        "expire_minutes": 60*24,
+        "skin": skin,
+    }
+    await _do_create_hongbao(ctx, msg, hongbao)
+    
+
+async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
+    lang = ctx.lang
+    total_count = hongbao["total_count"]
+    total_amount = hongbao["total_amount"]
+    expire_minutes = hongbao["expire_minutes"]
+    skin = hongbao["skin"]
 
     if total_count <= 0 or total_count > MAX_COUNT:
-        await message.reply(tr(lang, "rp_count_range", max_count=MAX_COUNT))
+        await ctx.bot.send_message(chat_id=msg["chat_id"], message_thread_id=msg["message_thread_id"], text=tr(lang, "rp_count_range", max_count=MAX_COUNT))
         return
     if total_amount < total_count * MIN_UNIT:
-        await message.reply(tr(lang, "rp_total_too_small", min_unit=MIN_UNIT))
+        await ctx.bot.send_message(chat_id=msg["chat_id"], message_thread_id=msg["message_thread_id"], text=tr(lang, "rp_total_too_small", min_unit=MIN_UNIT))
         return
     if expire_minutes <= 0:
-        await message.reply(tr(lang, "rp_expire_invalid"))
+        await ctx.bot.send_message(chat_id=msg["chat_id"], message_thread_id=msg["message_thread_id"], text=tr(lang, "rp_expire_invalid"))
         return
 
-    sender_id = message.from_user.id if message.from_user else 0
-    chat_id = message.chat.id
+    sender_id = msg["sender_id"]
+    chat_id = msg["chat_id"]
 
     now = datetime.now()
     expire_at = now + timedelta(minutes=expire_minutes)
     ttl_sec = max(1, int((expire_at - now).total_seconds()))
 
-    transaction_description = f"{message.chat.id}_{message.message_id}"
+    transaction_description = f"{chat_id}_{msg.get('message_id', 0)}"
 
     ret_refund = await HongbaoService.transaction_log({
         "sender_id": sender_id,
@@ -184,12 +299,12 @@ async def _do_create_hongbao(ctx: AppCtx, lang: str,  message: Message,  total_c
     })
 
     if ret_refund["status"] == "insufficient_funds":
-        await message.reply(tr(lang, "re_insufficient_funds"))
+        await ctx.bot.send_message(chat_id=chat_id, message_thread_id=msg["message_thread_id"], text=tr(lang, "re_insufficient_funds"))
         return
     elif ret_refund['status'] == 'insert' or ret_refund['status'] == 'exist':
         hid = await HongbaoService.create_hongbao(sender_id, chat_id, total_amount, total_count, expire_at, skin)
         if hid <= 0:
-            await message.reply(tr(lang, "redeem_busy"))
+            await ctx.bot.send_message(chat_id=chat_id, message_thread_id=msg["message_thread_id"], text=tr(lang, "redeem_busy"))
             return
 
         await ctx.r.set_hb_skin(hid, skin["hb_key"], ttl_sec)
@@ -199,7 +314,7 @@ async def _do_create_hongbao(ctx: AppCtx, lang: str,  message: Message,  total_c
 
 
         created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        sender_name = _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
+        sender_name = msg["sender_name"]
 
         line = [
             "<blockquote>"+tr(lang, "post_title", sender=sender_name)+"</blockquote>",
@@ -229,14 +344,18 @@ async def _do_create_hongbao(ctx: AppCtx, lang: str,  message: Message,  total_c
         text ="\n".join(line)
         # sent = await message.answer(text, reply_markup=kb_claim(hid, lang))
         try:
-            sent = await message.answer_photo(
+            sent = await ctx.bot.send_photo(
+                chat_id=msg['chat_id'],
+                message_thread_id=msg['message_thread_id'],
                 photo=skin["file_id_cover"],
                 caption=text,
-                reply_markup=kb_claim(hid, lang),
                 parse_mode="HTML",
+                protect_content=True,
+                reply_markup=kb_claim(hid, lang),
             )
+
         except Exception as e:
-            await message.reply(f"❌ 发送红包消息失败：{e}")
+            await ctx.bot.send_message(chat_id=msg["chat_id"], message_thread_id=msg["message_thread_id"], text=f"❌ 发送红包消息失败：{e}")
             return
 
         await HongbaoService.bind_message(hid, sent.message_id)
@@ -244,7 +363,7 @@ async def _do_create_hongbao(ctx: AppCtx, lang: str,  message: Message,  total_c
         # ======= Pin 消息到群组 =======
         try:
             await ctx.bot.pin_chat_message(
-                chat_id=message.chat.id,
+                chat_id=msg["chat_id"],
                 message_id=sent.message_id,
                 disable_notification=True,  # 不发送通知
             )
@@ -256,6 +375,7 @@ async def _do_create_hongbao(ctx: AppCtx, lang: str,  message: Message,  total_c
         pass
     else:
         return
+    
 @router.callback_query(F.data.startswith("hb_claim:"))
 async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     # 先秒回，避免 Telegram callback 超时
@@ -368,9 +488,10 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             ts = datetime.now().timestamp(),
         )
 
-    skin_key = await ctx.r.get_hb_skin(hid)
+    # skin_key = await ctx.r.get_hb_skin(hid)
 
-    skin = next((s for s in RP_SKINS if s["hb_key"] == skin_key), None)
+    # skin = next((s for s in RP_SKINS if s["hb_key"] == skin_key), None)
+    skin = await HongbaoService.get_hongbao(hid)
 
     if base_msg:
         old_text = (base_msg.caption or base_msg.text or "")
@@ -413,7 +534,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
                     cost_txt = _fmt_cost(cost_sec)
                     name = "<code>" + _h(name_raw) + "</code>"
                     items.append((name, int(amt), cost_txt))
-        else:
+        else:            
             items = _parse_items(old_text, lang)
 
             # 当前这次耗时
@@ -521,7 +642,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     try:
         send_message_text = tr(lang, "dm_got", amount=amount)
         if skin.get("dm_text"):
-            send_message_text += "\n\n" + skin["dm_text"]
+            send_message_text += "\n\n<i>" + skin["dm_text"] + "</i>"
 
         try:
             await ctx.bot.send_photo(
@@ -567,18 +688,17 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
     except TelegramBadRequest:
         pass
 
-    skin_key = await ctx.r.get_hb_skin(hid)
+    skin = await HongbaoService.get_hongbao(hid)
 
-
-
-    print(f"Redeem: hid={hid} skin_key={skin_key}")
-    skin = next((s for s in RP_SKINS if s["hb_key"] == skin_key), None)
-    print(f"Skin: {skin}")
+    # skin_key = await ctx.r.get_hb_skin(hid)
+    # print(f"Redeem: hid={hid} skin_key={skin_key}")
+    # skin = next((s for s in RP_SKINS if s["hb_key"] == skin_key), None)
+    # print(f"Skin: {skin}")
 
     code, amount = await ctx.r.redeem_prep(hid, uid, claiming_ttl=30)
     print(f"Redeem prep: code={code} amount={amount}")
 
-    if code == -2 or skin_key is None:
+    if code == -2 :
         await callback.message.answer(tr(lang, "redeem_fail_expired"))
         try:
             hongbao_info = await HongbaoService.get_hongbao(hid)  # 仅为了日志记录，顺便验证是否真的过期（MySQL 层）
