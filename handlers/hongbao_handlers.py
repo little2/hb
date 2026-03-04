@@ -16,8 +16,12 @@ from functools import lru_cache
 
 from config import (
     MIN_UNIT, MAX_COUNT, DEFAULT_EXPIRE_MINUTES,
-    GROUP_NOTICE_THROTTLE, GROUP_NOTICE_PER_SEC, DM_BLOCK_TTL_SEC
+    GROUP_NOTICE_THROTTLE, GROUP_NOTICE_PER_SEC, DM_BLOCK_TTL_SEC,
+    TARGET_CHAT_ID, TARGET_MESSAGE_THREAD_ID
 )
+
+
+
 from infra.redis_layer import RedisLayer, split_amounts
 from services.hongbao_service import HongbaoService
 
@@ -155,9 +159,11 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
             clt_id = int(cid_str) if cid_str.isdigit() else 0
             print(f"===>message: {message}", flush=True)
             
+
+
             msg = {
-                "chat_id": -1001943193056, 
-                "message_thread_id": 46220, 
+                "chat_id": TARGET_CHAT_ID, 
+                "message_thread_id": TARGET_MESSAGE_THREAD_ID, 
                 "sender_id": message.from_user.id if message.from_user else 0,
                 "message_id": message.message_id if message.message_id else 0,
                 "sender_name": _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))

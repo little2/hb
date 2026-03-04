@@ -54,3 +54,8 @@ GROUP_NOTICE_PER_SEC = int(os.getenv("GROUP_NOTICE_PER_SEC", "2"))
 DM_BLOCK_TTL_SEC = int(os.getenv("DM_BLOCK_TTL_SEC", "60"))
 
 X_MAN_BOT_ID = int(os.getenv("X_MAN_BOT_ID", 0))
+
+# -- 
+
+TARGET_CHAT_ID = config.get("target_chat_id", int(os.getenv("TARGET_CHAT_ID", "0")))
+TARGET_MESSAGE_THREAD_ID = config.get("target_message_thread_id", int(os.getenv("TARGET_MESSAGE_THREAD_ID", "0")))
