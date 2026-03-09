@@ -364,8 +364,26 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
                 reply_markup=kb_claim(hid, lang),
             )
 
+        except TelegramForbiddenError as e:
+            print(
+                f"[HONGBAO] send_photo forbidden, bot may be kicked or has no permission. "
+                f"chat_id={msg.get('chat_id')} thread_id={msg.get('message_thread_id')} err={e}",
+                flush=True,
+            )
+            return
         except Exception as e:
-            await ctx.bot.send_message(chat_id=msg["chat_id"], message_thread_id=msg["message_thread_id"], text=f"❌ 发送红包消息失败：{e}")
+            try:
+                await ctx.bot.send_message(
+                    chat_id=msg["chat_id"],
+                    message_thread_id=msg["message_thread_id"],
+                    text=f"❌ 发送红包消息失败：{e}"
+                )
+            except TelegramForbiddenError as notify_err:
+                print(
+                    f"[HONGBAO] notify send failure skipped due to forbidden. "
+                    f"chat_id={msg.get('chat_id')} thread_id={msg.get('message_thread_id')} err={notify_err}",
+                    flush=True,
+                )
             return
 
         await HongbaoService.bind_message(hid, sent.message_id)
