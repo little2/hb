@@ -105,7 +105,7 @@ RP_SKINS1 = [
 I18N = {
     "zh": {
         # ---- buttons ----
-        "btn_claim": "💦 帮龙嵬榨精",
+        "btn_claim": "💦 抢龙精积分",
         "btn_redeem": "🎁 领取 {amount} 滴龙精",
         "btn_done": "✅ 已取得龙精",
         "btn_expired": "☑️ 已过期",
