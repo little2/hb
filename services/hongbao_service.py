@@ -107,6 +107,48 @@ class HongbaoService:
         )
         return row  # 返回 dict 或 None
 
+    @staticmethod
+    async def get_cutedd(cutedd_id: int, bot_name: str) -> dict | None:
+        row = await MySQLPool.fetchone(
+            """
+            SELECT
+                c.board_message_thread_id,
+                c.board_chat_id,
+                c.file_caption,
+                fe.file_id AS file_id
+            FROM cutedd c
+            LEFT JOIN file_extension fe
+                ON fe.file_unique_id = c.file_unique_id
+               AND fe.bot = %s
+            WHERE c.cutedd_id = %s
+            ORDER BY fe.id DESC
+            LIMIT 1
+            """,
+            (bot_name, cutedd_id),
+        )
+        return row
+
+    @staticmethod
+    async def upsert_file_extension(
+        file_type: str,
+        file_unique_id: str,
+        file_id: str,
+        bot: str,
+        user_id: int | None,
+    ) -> None:
+        await MySQLPool.execute(
+            """
+            INSERT INTO file_extension(file_type, file_unique_id, file_id, bot, user_id, create_time)
+            VALUES(%s, %s, %s, %s, %s, NOW())
+            ON DUPLICATE KEY UPDATE
+                file_type = VALUES(file_type),
+                file_unique_id = VALUES(file_unique_id),
+                user_id = VALUES(user_id),
+                create_time = VALUES(create_time)
+            """,
+            (file_type, file_unique_id, file_id, bot, user_id),
+        )
+
     @classmethod
     async def in_block_list(cls, user_id: int) -> bool:
         row = await MySQLPool.fetchone(
@@ -265,5 +307,3 @@ class HongbaoService:
             return {"ok": "", "status": "integrity_error", "error": str(e)}
         except Exception as e:
             return {"ok": "", "status": "error", "error": str(e)}
-
-''''''

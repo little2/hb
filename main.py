@@ -95,7 +95,11 @@ async def build_app() -> tuple[Bot, Dispatcher, RedisLayer]:
         )
         rlayer = RedisLayer(rds)
         await rlayer.load_scripts()
+    except Exception:
+        print("Failed to connect to Redis. Please check your configuration.")
+        raise
 
+    try:
         await MySQLPool.init_pool(
             unix_socket=MYSQL_UNIX_SOCKET,
             user=MYSQL_USER,
@@ -107,7 +111,7 @@ async def build_app() -> tuple[Bot, Dispatcher, RedisLayer]:
             maxsize=10,
         )
     except Exception:
-        print("Failed to connect to Redis or MySQL. Please check your configuration.")
+        print("Failed to connect to MySQL. Please check your configuration.")
         raise
 
     ctx = AppCtx(r=rlayer, bot=bot)
@@ -172,10 +176,6 @@ async def run_webhook(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
 
 async def main():
     bot, dp, rlayer = await build_app()
-
-
-
-    
 
     if BOT_MODE == "polling":
         await run_polling(bot, dp, rlayer)

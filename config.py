@@ -60,4 +60,8 @@ X_MAN_BOT_ID = int(os.getenv("X_MAN_BOT_ID", 0))
 TARGET_CHAT_ID = config.get("target_chat_id", int(os.getenv("TARGET_CHAT_ID", "0")))
 TARGET_MESSAGE_THREAD_ID = config.get("target_message_thread_id", int(os.getenv("TARGET_MESSAGE_THREAD_ID", "0")))
 
+REVIEW_CHAT_ID = config.get("review_chat_id", int(os.getenv("REVIEW_CHAT_ID", "0")))
+REVIEW_MESSAGE_THREAD_ID = config.get("review_message_thread_id", int(os.getenv("REVIEW_MESSAGE_THREAD_ID", "0")))
+
+
 version = "0.1.1"

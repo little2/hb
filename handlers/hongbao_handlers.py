@@ -17,7 +17,7 @@ from functools import lru_cache
 from config import (
     MIN_UNIT, MAX_COUNT, DEFAULT_EXPIRE_MINUTES,
     GROUP_NOTICE_THROTTLE, GROUP_NOTICE_PER_SEC, DM_BLOCK_TTL_SEC,
-    TARGET_CHAT_ID, TARGET_MESSAGE_THREAD_ID
+    TARGET_CHAT_ID, TARGET_MESSAGE_THREAD_ID,REVIEW_CHAT_ID
 )
 
 
@@ -73,6 +73,38 @@ async def on_photo(message: Message):
         f"file_id: {largest.file_id}\n"
         f"size: {largest.width}x{largest.height}"
     )
+
+
+@router.message(
+    F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
+    F.chat.id == REVIEW_CHAT_ID,
+    F.photo | F.video,
+)
+async def on_target_group_media(message: Message):
+    media = None
+    file_type = ""
+
+    if message.photo:
+        media = message.photo[-1]
+        file_type = "photo"
+    elif message.video:
+        media = message.video
+        file_type = "video"
+
+    if media:
+        try:
+            bot_name = getattr(lz_var, "bot_username", "") or str(message.bot.id)
+            await HongbaoService.upsert_file_extension(
+                file_type=file_type,
+                file_unique_id=media.file_unique_id,
+                file_id=media.file_id,
+                bot=bot_name,
+                user_id=message.from_user.id if message.from_user else None,
+            )
+        except Exception as e:
+            print(f"[FILE_EXTENSION] upsert failed: {e}", flush=True)
+
+    
 
 
 def kb_claim(hid: int, lang: str) -> InlineKeyboardMarkup:
@@ -158,8 +190,6 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
             cid_str = parts[1]
             clt_id = int(cid_str) if cid_str.isdigit() else 0
             print(f"===>message: {message}", flush=True)
-            
-
 
             msg = {
                 "chat_id": TARGET_CHAT_ID, 
@@ -171,7 +201,40 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
             print(f"===>msg: {msg}", flush=True)
            
             await _do_create_promote(clt_id, ctx, msg)
-            await ctx.bot.send_message(chat_id=message.chat.id, text="推广成功发送至大群！")
+            await ctx.bot.send_message(chat_id=message.chat.id, text=f"成功推广你的连结 ({clt_id})至大群！")
+        elif parts[0] == "rl":
+            print(f"Received start with rl param: {param} {parts[1]}", flush=True)
+            cutedd_id_str = parts[1]
+            cutedd_id = int(cutedd_id_str) if cutedd_id_str.isdigit() else 0
+            # print(f"===>message: {message}", flush=True)
+
+            msg = {
+                "mode": "cutedd",
+                "chat_id": TARGET_CHAT_ID, 
+                "message_thread_id": TARGET_MESSAGE_THREAD_ID, 
+                "sender_id": message.from_user.id if message.from_user else 0,
+                "message_id": message.message_id if message.message_id else 0,
+                "sender_name": _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
+            }
+
+            # msg = {
+            #     "mode": "cutedd",
+            #     "chat_id": message.chat.id, 
+            #     "message_thread_id": 0, 
+            #     "sender_id": message.from_user.id if message.from_user else 0,
+            #     "message_id": message.message_id if message.message_id else 0,
+            #     "sender_name": _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
+            # }
+
+            # print(f"===>msg: {msg}", flush=True)
+           
+            ret = await _do_create_promote(cutedd_id, ctx, msg)
+            print(f"ret===>{ret}")
+            if ret and ret.get("ok") == "1":
+                await ctx.bot.send_message(chat_id=message.chat.id, text=f"成功推广你的连结 ({cutedd_id})至大群！")
+            else:
+                await ctx.bot.send_message(chat_id=message.chat.id, text=f"推广失败，可能是参数错误或服务器问题，请稍后再试。")
+
 
 @router.message(Command("rp"))
 async def cmd_rp(message: Message, ctx: AppCtx):
@@ -247,21 +310,38 @@ async def cmd_pushclt(message: Message, ctx: AppCtx):
         "sender_name": _h(message.from_user.first_name) if message.from_user else _h(tr(lang, "default_someone"))
     }
    
-    await _do_create_promote(clt_id, ctx, msg)
+    return await _do_create_promote(clt_id, ctx, msg)
     
 
-async def _do_create_promote(clt_id: int, ctx: AppCtx , msg: dict | None = None):
-    print(f"Creating promote for clt_id={clt_id} by user_id={msg['sender_id'] if msg else 'N/A'}", flush=True)
-    clt_row = await HongbaoService.get_user_collection(id=clt_id)
+async def _do_create_promote(id: int, ctx: AppCtx , msg: dict | None = None):
 
-    skin = {
-            "hb_key": f"clt{clt_id}",
-            "file_id_cover": lz_var.skins.get("push_cover", {}).get("file_id", ""),
-            "file_id_dm":lz_var.skins.get("push_cover", {}).get("file_id", ""),
-            "intro_text": clt_row.get("description"),
-            "dm_text": clt_row.get("description"),
-            "activity_link": f"https://t.me/{lz_var.publish_bot_name}?start=clt_{clt_id}",
-        }
+
+
+    if(msg["mode"]=="cutedd"):
+        bot_name = getattr(lz_var, "bot_username", "")
+        cutedd_row = await HongbaoService.get_cutedd(cutedd_id=id, bot_name=bot_name)
+        board_chat_id = str(cutedd_row.get("board_chat_id")).replace("-100", "") if cutedd_row.get("board_chat_id") else ""
+        board_message_thread_id = cutedd_row.get("board_message_thread_id") if cutedd_row.get("board_message_thread_id") else ""
+
+        skin = {
+                "hb_key": f"rl:{id}",
+                "file_id_cover": cutedd_row.get("file_id") or lz_var.skins.get("push_cover", {}).get("file_id", ""),
+                "file_id_dm":cutedd_row.get("file_id") or lz_var.skins.get("push_cover", {}).get("file_id", ""),
+                "intro_text": cutedd_row.get("file_caption") or cutedd_row.get("description"),
+                "dm_text": cutedd_row.get("file_caption") or cutedd_row.get("description"),
+                "activity_link": f"https://t.me/c/{board_chat_id}/{board_message_thread_id}",
+            }
+    else:
+        print(f"Creating promote for clt_id={id} by user_id={msg['sender_id'] if msg else 'N/A'}", flush=True)
+        clt_row = await HongbaoService.get_user_collection(id=id)
+        skin = {
+                "hb_key": f"clt{id}",
+                "file_id_cover": lz_var.skins.get("push_cover", {}).get("file_id", ""),
+                "file_id_dm":lz_var.skins.get("push_cover", {}).get("file_id", ""),
+                "intro_text": clt_row.get("description"),
+                "dm_text": clt_row.get("description"),
+            "activity_link": f"https://t.me/{lz_var.publish_bot_name}?start=clt_{id}",
+            }
   
     hongbao = {
         "total_count": 7,
@@ -269,7 +349,7 @@ async def _do_create_promote(clt_id: int, ctx: AppCtx , msg: dict | None = None)
         "expire_minutes": 60*24,
         "skin": skin,
     }
-    await _do_create_hongbao(ctx, msg, hongbao)
+    return await _do_create_hongbao(ctx, msg, hongbao)
     
 
 async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
@@ -307,9 +387,11 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
         "transaction_description": transaction_description
     })
 
+    print(f"Transaction log result: {ret_refund}", flush=True)
+
     if ret_refund["status"] == "insufficient_funds":
         await ctx.bot.send_message(chat_id=chat_id, message_thread_id=msg["message_thread_id"], text=tr(lang, "re_insufficient_funds"))
-        return
+        return ret_refund
     elif ret_refund['status'] == 'insert' or ret_refund['status'] == 'exist':
         hid = await HongbaoService.create_hongbao(sender_id, chat_id, total_amount, total_count, expire_at, skin)
         if hid <= 0:
@@ -402,7 +484,7 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
             pass
         pass
     else:
-        return
+        return ret_refund
     
 @router.callback_query(F.data.startswith("hb_claim:"))
 async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
