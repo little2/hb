@@ -203,8 +203,11 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
         param = args[1].strip()
         parts = param.split("_")
         if parts[0] == "clt":
-            print(f"Received start with clt param: {param} {parts[1]}", flush=True)
-            cid_str = parts[1]
+            cid_str = parts[1].strip() if len(parts) > 1 else ""
+            print(f"Received start with clt param: {param} {cid_str}", flush=True)
+            if not cid_str.isdigit():
+                await ctx.bot.send_message(chat_id=message.chat.id, text="推广失败，参数错误。")
+                return
             clt_id = int(cid_str) if cid_str.isdigit() else 0
             print(f"===>message: {message}", flush=True)
 
@@ -250,7 +253,14 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
            
             ret = await _do_create_promote(cutedd_id, ctx, msg)
             print(f"ret===>{ret}")
-            if ret and ret.get("ok") == "1":
+
+            ok = False
+            if isinstance(ret, dict):
+                ok = ret.get("ok") == "1" or ret.get("status") in {"insert", "exist"}
+            elif ret is not None:
+                ok = True
+
+            if ok:
                 await ctx.bot.send_message(chat_id=message.chat.id, text=f"成功推广你的连结 ({cutedd_id})至大群！")
             else:
                 await ctx.bot.send_message(chat_id=message.chat.id, text=f"推广失败，可能是参数错误或服务器问题，请稍后再试。")
