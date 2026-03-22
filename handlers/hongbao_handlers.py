@@ -62,17 +62,34 @@ router = Router()
 async def delete_pin_service(message: Message):
     await message.delete()
 
-@router.message(F.chat.type == ChatType.PRIVATE, F.photo)
+@router.message(F.chat.type == ChatType.PRIVATE, F.photo | F.video)
 async def on_photo(message: Message):
-    # message.photo 是 List[PhotoSize]
-    largest = message.photo[-1]
+    print(f"Received media message in private chat: {message}", flush=True)
+    if message.photo:
+        media = message.photo[-1]
+        file_type = "photo"
+    elif message.video:
+        media = message.video
+        file_type = "video"
 
     await message.reply(
         "📸 已识别到图片（最大尺寸）\n"
-        f"file_unique_id: {largest.file_unique_id}\n"
-        f"file_id: {largest.file_id}\n"
-        f"size: {largest.width}x{largest.height}"
+        f"file_unique_id: {media.file_unique_id}\n"
+        f"file_type: {file_type}\n"
     )
+
+    if media:
+        try:
+            bot_name = getattr(lz_var, "bot_username", "") or str(message.bot.id)
+            await HongbaoService.upsert_file_extension(
+                file_type=file_type,
+                file_unique_id=media.file_unique_id,
+                file_id=media.file_id,
+                bot=bot_name,
+                user_id=message.from_user.id if message.from_user else None,
+            )
+        except Exception as e:
+            print(f"[FILE_EXTENSION] upsert failed: {e}", flush=True)
 
 
 @router.message(
@@ -83,7 +100,7 @@ async def on_photo(message: Message):
 async def on_target_group_media(message: Message):
     media = None
     file_type = ""
-    print(f"on_target_group_media -Received media message: {message}")
+    print(f"on_target_group_media -Received media message: {message}",flush=True)
 
     if message.photo:
         media = message.photo[-1]
