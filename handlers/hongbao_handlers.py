@@ -83,6 +83,7 @@ async def on_photo(message: Message):
 async def on_target_group_media(message: Message):
     media = None
     file_type = ""
+    print(f"on_target_group_media -Received media message: {message}")
 
     if message.photo:
         media = message.photo[-1]
@@ -325,7 +326,7 @@ async def _do_create_promote(id: int, ctx: AppCtx , msg: dict | None = None):
         board_message_id = cutedd_row.get("board_message_id") if cutedd_row.get("board_message_id") else ""
         dm_text = cutedd_row.get("file_caption") or cutedd_row.get("description")
 
-        dm_text = f"{dm_text}\r\r\r\n👇喜欢我介绍的弟弟吗? 快点下面的「推广链结」喂他吃香蕉吧！👇"
+        dm_text = f"{dm_text}\r\n\r\n👇 喜欢我介绍的弟弟吗? 快点下面的「推广链结」喂他吃香蕉吧！👇"
 
         skin = {
                 "hb_key": f"rl:{id}",

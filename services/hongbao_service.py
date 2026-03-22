@@ -114,6 +114,7 @@ class HongbaoService:
             SELECT
                 c.board_message_thread_id,
                 c.board_chat_id,
+                c.board_message_id,
                 c.file_caption,
                 fe.file_id AS file_id
             FROM cutedd c
