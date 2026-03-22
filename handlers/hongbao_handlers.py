@@ -220,9 +220,12 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
             await _do_create_promote(clt_id, ctx, msg)
             await ctx.bot.send_message(chat_id=message.chat.id, text=f"成功推广你的连结 ({clt_id})至大群！")
         elif parts[0] == "rl":
-            print(f"Received start with rl param: {param} {parts[1]}", flush=True)
-            cutedd_id_str = parts[1]
-            cutedd_id = int(cutedd_id_str) if cutedd_id_str.isdigit() else 0
+            cutedd_id_str = parts[1].strip() if len(parts) > 1 else ""
+            print(f"Received start with rl param: {param} {cutedd_id_str}", flush=True)
+            if not cutedd_id_str.isdigit():
+                await ctx.bot.send_message(chat_id=message.chat.id, text="推广失败，参数错误。")
+                return
+            cutedd_id = int(cutedd_id_str)
             # print(f"===>message: {message}", flush=True)
 
             msg = {
@@ -334,13 +337,19 @@ async def _do_create_promote(id: int, ctx: AppCtx , msg: dict | None = None):
 
 
 
-    if(msg["mode"]=="cutedd"):
-        bot_name = getattr(lz_var, "bot_username", "")
+    if msg and msg.get("mode") == "cutedd":
+        if id <= 0:
+            return {"ok": "", "status": "bad_cutedd_id"}
+
+        bot_name = getattr(lz_var, "bot_username", "") or ""
         cutedd_row = await HongbaoService.get_cutedd(cutedd_id=id, bot_name=bot_name)
+        if not cutedd_row:
+            return {"ok": "", "status": "cutedd_not_found"}
+
         board_chat_id = str(cutedd_row.get("board_chat_id")).replace("-100", "") if cutedd_row.get("board_chat_id") else ""
         board_message_thread_id = cutedd_row.get("board_message_thread_id") if cutedd_row.get("board_message_thread_id") else ""
         board_message_id = cutedd_row.get("board_message_id") if cutedd_row.get("board_message_id") else ""
-        dm_text = cutedd_row.get("file_caption") or cutedd_row.get("description")
+        dm_text = cutedd_row.get("file_caption") or ""
 
         dm_text = f"{dm_text}\r\n\r\n👇 喜欢我介绍的弟弟吗? 快点下面的「推广链结」喂他吃香蕉吧！👇"
 
@@ -466,6 +475,7 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
                 protect_content=True,
                 reply_markup=kb_claim(hid, lang),
             )
+            
 
         except TelegramForbiddenError as e:
             print(
@@ -503,7 +513,8 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
             pass
         except Exception as e:
             pass
-        pass
+        return sent
+        
     else:
         return ret_refund
     
