@@ -322,14 +322,18 @@ async def _do_create_promote(id: int, ctx: AppCtx , msg: dict | None = None):
         cutedd_row = await HongbaoService.get_cutedd(cutedd_id=id, bot_name=bot_name)
         board_chat_id = str(cutedd_row.get("board_chat_id")).replace("-100", "") if cutedd_row.get("board_chat_id") else ""
         board_message_thread_id = cutedd_row.get("board_message_thread_id") if cutedd_row.get("board_message_thread_id") else ""
+        board_message_id = cutedd_row.get("board_message_id") if cutedd_row.get("board_message_id") else ""
+        dm_text = cutedd_row.get("file_caption") or cutedd_row.get("description")
+
+        dm_text = f"{dm_text}\r\r\r\n👇喜欢我介绍的弟弟吗? 快点下面的「推广链结」喂他吃香蕉吧！👇"
 
         skin = {
                 "hb_key": f"rl:{id}",
                 "file_id_cover": cutedd_row.get("file_id") or lz_var.skins.get("push_cover", {}).get("file_id", ""),
                 "file_id_dm":cutedd_row.get("file_id") or lz_var.skins.get("push_cover", {}).get("file_id", ""),
                 "intro_text": cutedd_row.get("file_caption") or cutedd_row.get("description"),
-                "dm_text": cutedd_row.get("file_caption") or cutedd_row.get("description"),
-                "activity_link": f"https://t.me/c/{board_chat_id}/{board_message_thread_id}",
+                "dm_text": dm_text,
+                "activity_link": f"https://t.me/c/{board_chat_id}/{board_message_thread_id}/{board_message_id}",
             }
     else:
         print(f"Creating promote for clt_id={id} by user_id={msg['sender_id'] if msg else 'N/A'}", flush=True)
