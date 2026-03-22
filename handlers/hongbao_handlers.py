@@ -94,8 +94,7 @@ async def on_photo(message: Message):
 
 @router.message(
     F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
-    F.chat.id == REVIEW_CHAT_ID,
-    F.photo | F.video,
+    F.chat.id == REVIEW_CHAT_ID
 )
 async def on_target_group_media(message: Message):
     media = None
