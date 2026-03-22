@@ -643,7 +643,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     # skin_key = await ctx.r.get_hb_skin(hid)
 
     # skin = next((s for s in RP_SKINS if s["hb_key"] == skin_key), None)
-    skin = await HongbaoService.get_hongbao(hid)
+    skin = await HongbaoService.get_hongbao(hid) or {}
 
     if base_msg:
         old_text = (base_msg.caption or base_msg.text or "")
@@ -840,7 +840,7 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
     except TelegramBadRequest:
         pass
 
-    skin = await HongbaoService.get_hongbao(hid)
+    skin = await HongbaoService.get_hongbao(hid) or {}
 
     # skin_key = await ctx.r.get_hb_skin(hid)
     # print(f"Redeem: hid={hid} skin_key={skin_key}")
