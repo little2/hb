@@ -429,7 +429,7 @@ async def main():
 
             async def on_app_start(app):
                 await db.init()
-                # await get_scheduler_from_app(app).spawn(sync_db())
+                await get_scheduler_from_app(app).spawn(sync_db())
                 await get_scheduler_from_app(app).spawn(periodic_sender(db))
 
             asyncio.create_task(keep_alive_ping())
@@ -442,7 +442,7 @@ async def main():
         else:
             await bot.delete_webhook(drop_pending_updates=True)
             loop = asyncio.get_event_loop()
-            # loop.create_task(sync_db())
+            loop.create_task(sync_db())
             loop.create_task(periodic_sender(db))
             should_close_resources = False
             await dp.start_polling(
