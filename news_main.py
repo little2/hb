@@ -394,9 +394,11 @@ async def periodic_sender(db: NewsDatabase):
 
 async def sync_db(run_once: bool = False):
     if run_once:
+        cursor_id = None
         news_stat = {"fetched": 0, "inserted": 0}
         while True:
-            news_stat = await sync_news_content_cache_once(batch_size=20)
+            news_stat = await sync_news_content_cache_once(after_id=cursor_id, batch_size=20)
+            cursor_id = int(news_stat.get("source_max_id", cursor_id or 0))
             if news_stat.get("fetched", 0) < 20:
                 break
 

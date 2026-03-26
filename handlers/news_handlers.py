@@ -7,7 +7,7 @@ from services.news_service import NewsService
 
 
 
-async def sync_news_content_cache_once(batch_size: int = 500) -> Dict[str, int]:
+async def sync_news_content_cache_once(after_id: int | None = None, batch_size: int = 500) -> Dict[str, int]:
 	"""
 	MySQL(主) -> PostgreSQL(缓存) 增量同步一批 news_content。
 	规则：
@@ -17,21 +17,24 @@ async def sync_news_content_cache_once(batch_size: int = 500) -> Dict[str, int]:
 	"""
 	await NewsService.init_sync_pools()
 
-	pg_max_id = await NewsService.get_pg_news_content_max_id()
-	print(f"📡 同步 news_content_cache: pg_max_id={pg_max_id}, batch_size={batch_size}", flush=True)
+	if after_id is None:
+		after_id = await NewsService.get_pg_news_content_max_id()
+	print(f"📡 同步 news_content_cache: after_id={after_id}, batch_size={batch_size}", flush=True)
 
 	mysql_rows = await NewsService.fetch_mysql_news_content_rows_after_id(
-		after_id=pg_max_id,
+		after_id=int(after_id),
 		batch_size=int(batch_size),
 	)
 	print(f"📥 从 MySQL 读取到 {len(mysql_rows)} 条 news_content 记录", flush=True)
 
 	fetched = len(mysql_rows)
+	source_max_id = int(after_id)
 	if not mysql_rows:
-		return {"pg_max_id": pg_max_id, "fetched": 0, "inserted": 0}
+		return {"after_id": int(after_id), "source_max_id": source_max_id, "fetched": 0, "inserted": 0}
 
 	payload: List[Tuple[Any, ...]] = []
 	for r in mysql_rows:
+		source_max_id = max(source_max_id, int(r["id"]))
 		payload.append(
 			(
 				int(r["id"]),
@@ -51,7 +54,12 @@ async def sync_news_content_cache_once(batch_size: int = 500) -> Dict[str, int]:
 	inserted = await NewsService.bulk_insert_news_content_cache(payload)
 	print(f"📤 插入到 PostgreSQL {inserted} 条 news_content 记录", flush=True)
 
-	return {"pg_max_id": pg_max_id, "fetched": fetched, "inserted": inserted}
+	return {
+		"after_id": int(after_id),
+		"source_max_id": source_max_id,
+		"fetched": fetched,
+		"inserted": inserted,
+	}
 
 
 async def run_sync_db_loop(
@@ -63,12 +71,14 @@ async def run_sync_db_loop(
 	"""
 	while True:
 		try:
+			cursor_id = await NewsService.get_pg_news_content_max_id()
 			round_inserted = 0
 			round_batches = 0
 			while True:
-				stat = await sync_news_content_cache_once(batch_size=batch_size)
+				stat = await sync_news_content_cache_once(after_id=cursor_id, batch_size=batch_size)
 				round_batches += 1
 				round_inserted += int(stat.get("inserted", 0))
+				cursor_id = int(stat.get("source_max_id", cursor_id))
 
 				if stat.get("fetched", 0) < int(batch_size):
 					break
