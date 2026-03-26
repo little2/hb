@@ -260,7 +260,7 @@ async def receive_media(message: Message):
         print(f"✅ 已新增新闻并建立任务，新闻 ID = {news_id}", flush=True)
         await db.create_send_tasks(news_id, business_type)
 
-
+#收到X_MAN的回覆
 @dp.message(lambda msg: (msg.photo or msg.video or msg.document) and msg.from_user.id == X_MAN_BOT_ID)
 async def receive_file_material(message: Message):
     # 必须是回复别人的消息

@@ -127,3 +127,24 @@ class NewsService:
                 await conn.executemany(sql, payload)
 
         return len(payload)
+    
+    @classmethod
+    async def bulk_update_news_users_membership(
+        cls,
+        payload: List[Tuple[int, str, int]],
+    ) -> int:
+        if not payload:
+            return 0
+
+        sql = """
+        UPDATE news_user
+        SET expire_at = to_timestamp($3)
+        WHERE user_id = $1 AND business_type = $2
+        """
+
+        pg_pool = await PGPool.ensure_pool()
+        async with pg_pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.executemany(sql, payload)
+
+        return len(payload)    

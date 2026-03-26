@@ -110,7 +110,7 @@ async def sync_membership_once(
 			continue
 		payload.append((uid, business_type, expire_ts))
 
-	upserted = await NewsService.bulk_upsert_news_users_membership(payload)
+	upserted = await NewsService.bulk_update_news_users_membership(payload)
 	return {"fetched": fetched, "upserted": upserted}
 
 
