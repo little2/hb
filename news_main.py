@@ -15,7 +15,12 @@ from aiojobs.aiohttp import setup as setup_aiojobs
 from aiojobs.aiohttp import get_scheduler_from_app
 
 from news_db import NewsDatabase
-from handlers.news_handlers import run_sync_db_loop, run_sync_membership_loop
+from handlers.news_handlers import (
+    run_sync_db_loop,
+    run_sync_membership_loop,
+    sync_membership_once,
+    sync_news_content_cache_once,
+)
 
 from news_config import X_MAN_BOT_ID,BOT_TOKEN, DB_DSN, AES_KEY, BOT_MODE, WEBHOOK_PATH, WEBHOOK_HOST,SWITCHBOT_CHAT_ID,SWITCHBOT_THREAD_ID,SWITCHBOT_TOKEN
 from utils.aes_crypto import AESCrypto
@@ -28,6 +33,7 @@ dp = Dispatcher()
 db = NewsDatabase(DB_DSN, max_size=2)
 
 _bot_username: str = ""
+_manual_update_lock = asyncio.Lock()
 
 lz_var_start_time = time.time()
 lz_var_cold_start_flag = True
@@ -193,6 +199,28 @@ async def push_news_handler(message: Message, command: CommandObject):
     business_type = business_type or "news"
     await db.create_send_tasks(news_id, business_type)
     await safe_reply(message, f"✅ 已将新闻 ID = {news_id} 加入 {business_type} 业务类型的推送任务队列")
+
+
+@dp.message(Command("update"))
+async def update_handler(message: Message):
+    if _manual_update_lock.locked():
+        await safe_reply(message, "⏳ 当前已有同步任务在执行，请稍后再试")
+        return
+
+    async with _manual_update_lock:
+        await safe_reply(message, "🔄 开始执行同步任务")
+        try:
+            result = await sync_db(run_once=True)
+            news_stat = result["news"]
+            membership_stat = result["membership"]
+            await safe_reply(
+                message,
+                "✅ 同步完成\n"
+                f"news_content: fetched={news_stat.get('fetched', 0)}, inserted={news_stat.get('inserted', 0)}\n"
+                f"membership: fetched={membership_stat.get('fetched', 0)}, upserted={membership_stat.get('upserted', 0)}",
+            )
+        except Exception as e:
+            await safe_reply(message, f"❌ 同步失败：{e}")
 
 
 
@@ -364,7 +392,24 @@ async def periodic_sender(db: NewsDatabase):
         # === 间隔 60 秒再跑下一轮 ===
         await asyncio.sleep(15)
 
-async def sync_db():
+async def sync_db(run_once: bool = False):
+    if run_once:
+        news_stat = {"fetched": 0, "inserted": 0}
+        while True:
+            news_stat = await sync_news_content_cache_once(batch_size=20)
+            if news_stat.get("fetched", 0) < 20:
+                break
+
+        membership_stat = await sync_membership_once(
+            course_code="xlj",
+            business_type="xlj",
+            batch_size=5000,
+        )
+        return {
+            "news": news_stat,
+            "membership": membership_stat,
+        }
+
     await asyncio.gather(
         run_sync_membership_loop(
             interval_seconds=300,
@@ -372,7 +417,7 @@ async def sync_db():
             business_type="xlj",
             batch_size=5000,
         ),
-        run_sync_db_loop(interval_seconds=300, batch_size=5),
+        run_sync_db_loop(interval_seconds=300, batch_size=20),
     )
 
 async def on_startup(bot: Bot):
