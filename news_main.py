@@ -25,7 +25,9 @@ from utils.base62_converter import Base62Converter
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
-db = NewsDatabase(DB_DSN)
+db = NewsDatabase(DB_DSN, max_size=2)
+
+_bot_username: str = ""
 
 lz_var_start_time = time.time()
 lz_var_cold_start_flag = True
@@ -349,7 +351,7 @@ async def periodic_sender(db: NewsDatabase):
                         await asyncio.sleep(1)
                         await db.add_retry_count_for_news_id(news_id)
                     except Exception as e:
-                        await switch_bot.send_message(chat_id=X_MAN_BOT_ID,  text=f"|_kick_|@{bot.username}")
+                        await switch_bot.send_message(chat_id=X_MAN_BOT_ID,  text=f"|_kick_|@{_bot_username}")
                         await switch_bot.send_message(chat_id=SWITCHBOT_CHAT_ID, message_thread_id=SWITCHBOT_THREAD_ID, text=f"⚠️ 无法联系老板( {X_MAN_BOT_ID} ) 已kick,  补档 news_id={news_id}, fuid={fuid}")
                         print(f"⚠️ 发送请求给 {X_MAN_BOT_ID} 失败: {e}", flush=True)
                         # 失败也清掉挂起，避免僵尸条目
@@ -408,8 +410,9 @@ async def main():
     try:
         await db.init()
         await db.ensure_schema()
-        global bot
+        global bot, _bot_username
         me = await bot.get_me()
+        _bot_username = me.username or ""
         print(f'你的用户名: {me.username}',flush=True)
         print(f'你的ID: {me.id}')
         print(f'你的名字: {me.first_name} {me.last_name or ""}')

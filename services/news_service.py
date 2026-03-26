@@ -16,6 +16,7 @@ class NewsService:
     @classmethod
     async def init_sync_pools(cls) -> None:
         PGPool.DSN = DB_DSN
+        PGPool.MAX_SIZE = 5
         await PGPool.init_pool()
         await MySQLPool.init_pool()
 
