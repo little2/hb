@@ -65,7 +65,7 @@ async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
                     chat_id=user_id, text=task["text"],
                     reply_markup=keyboard, protect_content=True
                 )
-            print(f"✅ 成功发送给用户 {user_id}, 消息ID: {retSent}", flush=True)
+            print(f"✅ 成功发送给用户 {user_id}", flush=True)
             return  # 成功
         except TelegramRetryAfter as e:
             # Telegram 提示退避秒数
