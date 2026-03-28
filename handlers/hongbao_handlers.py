@@ -483,12 +483,12 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
     print(f"Transaction log result: {ret_refund}", flush=True)
 
     if ret_refund["status"] == "insufficient_funds":
-        await ctx.bot.send_message(chat_id=chat_id, message_thread_id=msg["message_thread_id"], text=tr(lang, "re_insufficient_funds"))
+        await ctx.bot.send_message(chat_id=sender_id, text=tr(lang, "re_insufficient_funds"))
         return ret_refund
     elif ret_refund['status'] == 'insert' or ret_refund['status'] == 'exist':
         hid = await HongbaoService.create_hongbao(sender_id, chat_id, total_amount, total_count, expire_at, skin)
         if hid <= 0:
-            await ctx.bot.send_message(chat_id=chat_id, message_thread_id=msg["message_thread_id"], text=tr(lang, "redeem_busy"))
+            await ctx.bot.send_message(chat_id=sender_id, text=tr(lang, "redeem_busy"))
             return
 
         await ctx.r.set_hb_skin(hid, skin["hb_key"], ttl_sec)
