@@ -55,6 +55,17 @@ def get_patterns(lang: str):
 
 router = Router()
 
+
+def _build_group_message_link(chat_id: int, message_id: int, thread_id: int | None = None) -> str:
+    chat_id_str = str(chat_id)
+    if not chat_id_str.startswith("-100") or message_id <= 0:
+        return ""
+
+    internal_chat_id = chat_id_str[4:]
+    if thread_id:
+        return f"https://t.me/c/{internal_chat_id}/{thread_id}/{message_id}"
+    return f"https://t.me/c/{internal_chat_id}/{message_id}"
+
 # from aiogram import Router, F
 # from aiogram.types import Message
 
@@ -220,8 +231,26 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
             }
             print(f"===>msg: {msg}", flush=True)
            
-            await _do_create_promote(clt_id, ctx, msg)
-            await ctx.bot.send_message(chat_id=message.chat.id, text=f"成功推广你的连结 ({clt_id})至大群！")
+            ret = await _do_create_promote(clt_id, ctx, msg)
+            promo_link = ""
+            if isinstance(ret, Message):
+                promo_link = _build_group_message_link(
+                    chat_id=TARGET_CHAT_ID,
+                    message_id=ret.message_id,
+                    thread_id=TARGET_MESSAGE_THREAD_ID,
+                )
+
+            if promo_link:
+                await ctx.bot.send_message(
+                    chat_id=message.chat.id,
+                    text=f"成功推广你的连结 ({clt_id})至大群！",
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+                        text="直达红包",
+                        url=promo_link,
+                    )]]),
+                )
+            else:
+                await ctx.bot.send_message(chat_id=message.chat.id, text=f"成功推广你的连结 ({clt_id})至大群！")
         elif parts[0] == "rl":
             cutedd_id_str = parts[1].strip() if len(parts) > 1 else ""
             print(f"Received start with rl param: {param} {cutedd_id_str}", flush=True)
@@ -261,7 +290,25 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
                 ok = True
 
             if ok:
-                await ctx.bot.send_message(chat_id=message.chat.id, text=f"成功推广你的连结 ({cutedd_id})至大群！")
+                promo_link = ""
+                if isinstance(ret, Message):
+                    promo_link = _build_group_message_link(
+                        chat_id=TARGET_CHAT_ID,
+                        message_id=ret.message_id,
+                        thread_id=TARGET_MESSAGE_THREAD_ID,
+                    )
+
+                if promo_link:
+                    await ctx.bot.send_message(
+                        chat_id=message.chat.id,
+                        text=f"成功推广你的连结 ({cutedd_id})至大群！",
+                        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+                            text="直达红包",
+                            url=promo_link,
+                        )]]),
+                    )
+                else:
+                    await ctx.bot.send_message(chat_id=message.chat.id, text=f"成功推广你的连结 ({cutedd_id})至大群！")
             else:
                 await ctx.bot.send_message(chat_id=message.chat.id, text=f"推广失败，可能是参数错误或服务器问题，请稍后再试。")
 
