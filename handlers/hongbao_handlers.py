@@ -427,7 +427,7 @@ async def _do_create_promote(id: int, ctx: AppCtx , msg: dict | None = None):
                 "file_id_dm":lz_var.skins.get("push_cover", {}).get("file_id", ""),
                 "intro_text": clt_row.get("description"),
                 "dm_text": clt_row.get("description"),
-            "activity_link": f"https://t.me/{lz_var.publish_bot_name}?start=clt_{id}",
+                "activity_link": f"https://t.me/{lz_var.publish_bot_name}?start=clt_{id}",
             }
   
     hongbao = {
@@ -445,6 +445,11 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
     total_amount = hongbao["total_amount"]
     expire_minutes = hongbao["expire_minutes"]
     skin = hongbao["skin"]
+
+    mode = "promote"
+    if msg and msg.get("mode"):
+        mode = msg["mode"]
+
     print(f"msg====>{msg}")
     if total_count <= 0 or total_count > MAX_COUNT:
         await ctx.bot.send_message(chat_id=msg["chat_id"], message_thread_id=msg["message_thread_id"], text=tr(lang, "rp_count_range", max_count=MAX_COUNT))
@@ -470,8 +475,9 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
         "sender_fee": -1 * total_amount,
         "receiver_id": 0,
         "receiver_fee": 0,
-        "transaction_type": "hongbao",
-        "transaction_description": transaction_description
+        "transaction_type": mode,
+        "transaction_description": transaction_description,
+        "memo": f"{skin['hb_key']}"
     })
 
     print(f"Transaction log result: {ret_refund}", flush=True)
