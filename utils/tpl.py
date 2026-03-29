@@ -258,7 +258,7 @@ class Tplate:
                 msg = await lz_var.bot.send_message(chat_id=lz_var.x_man_bot_id, text=f"{fu}")
                 print(f"📨 已请求 {fu}",flush=True)
             except Exception as e:
-                print(f"⚠️ 向 x-man 请求失败：{e} - {lz_var.x_man_bot_id}",flush=True)
+                print(f"⚠️ 向 x-man 请求失败(tpl)：{e} - {lz_var.x_man_bot_id}",flush=True)
                 return {"ok":None, "handshake": lz_var.x_man_bot_id}
                 
 
