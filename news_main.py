@@ -7,12 +7,24 @@ from aiohttp import web
 import aiohttp
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandObject
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiojobs.aiohttp import setup as setup_aiojobs
 from aiojobs.aiohttp import get_scheduler_from_app
+import lz_var
+
+from aiogram.types import (
+    Message,
+    BotCommand,
+    BotCommandScopeAllGroupChats,
+    BotCommandScopeAllPrivateChats,
+    BotCommandScopeDefault,
+    InlineKeyboardMarkup, 
+    InlineKeyboardButton
+)
+
 
 from news_db import NewsDatabase
 from handlers.news_handlers import (
@@ -120,6 +132,22 @@ def parse_button_str(button_str: str) -> InlineKeyboardMarkup | None:
     return InlineKeyboardMarkup(inline_keyboard=keyboard) if keyboard else None
 
 
+
+@dp.message(Command("setcommand"))
+async def handle_set_comment_command(message: Message):
+
+    await bot.delete_my_commands(scope=BotCommandScopeAllGroupChats())
+    await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats())
+    await bot.delete_my_commands(scope=BotCommandScopeDefault())
+    await bot.set_my_commands(
+        commands=[
+            BotCommand(command="start", description="首页菜单")
+            
+        ],
+        scope=BotCommandScopeAllPrivateChats()
+    )
+    print("✅ 已设置命令列表", flush=True)
+
 @dp.message(Command("start"))
 async def start_handler(message: Message, command: CommandObject):
     args = command.args
@@ -151,8 +179,47 @@ async def start_handler(message: Message, command: CommandObject):
         except Exception as e:
             await message.answer(f"⚠️ 链接解析失败：{str(e)}")
     else:
-        await message.answer("🤖 哥哥您好，我是鲁仔")
+       
+        current_message = await message.answer(
+                    text="👋 欢迎使用鲁仔机器人！请选择操作：",
+                    parse_mode="HTML",
+                    reply_markup=main_menu_keyboard()
+            )
 
+    
+def main_menu_keyboard():
+    keyboard = [
+        [
+            InlineKeyboardButton(text="🔍 搜索", url=f"https://t.me/{lz_var.publish_bot_name}?start=search", callback_data=""),
+            InlineKeyboardButton(text="🏆 排行", url=f"https://t.me/{lz_var.publish_bot_name}?start=rank",callback_data=""),
+        ],
+    ]
+
+    # 仅在 dev 环境显示「资源橱窗」 PUBLISH_BOT_TOKEN
+
+    keyboard.append([
+        InlineKeyboardButton(text="🪟 资源橱窗", url=f"https://t.me/{lz_var.publish_bot_name}?start=collection",callback_data=""),
+        InlineKeyboardButton(text="🕑 我的历史", url=f"https://t.me/{lz_var.publish_bot_name}?start=history", callback_data=""),
+    ])
+
+
+    keyboard.append([
+        InlineKeyboardButton(
+            text="📤 上传资源",
+            url=f"https://t.me/{lz_var.uploader_bot_name}?start=upload"
+        )
+    ])
+
+    keyboard.append([
+        InlineKeyboardButton(
+            text="🐲 小龙阳",
+            url=f"https://t.me/{lz_var.guider_bot_name}?start=map"
+        )
+    ])
+
+
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 @dp.message(Command("show"))
 async def show_news_handler(message: Message, command: CommandObject):
