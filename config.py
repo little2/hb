@@ -63,5 +63,10 @@ TARGET_MESSAGE_THREAD_ID = config.get("target_message_thread_id", int(os.getenv(
 REVIEW_CHAT_ID = config.get("review_chat_id", int(os.getenv("REVIEW_CHAT_ID", "0")))
 REVIEW_MESSAGE_THREAD_ID = config.get("review_message_thread_id", int(os.getenv("REVIEW_MESSAGE_THREAD_ID", "0")))
 
+s_raw = os.getenv("SWITCHBOT_CONFIGURATION")
+s_conf = json.loads(s_raw)
+SWITCHBOT_CHAT_ID: int = s_conf["chat_id"]
+SWITCHBOT_THREAD_ID: int = s_conf["thread_id"]
+SWITCHBOT_TOKEN: str = s_conf["switchbot_token"]
 
 version = "0.1.1"

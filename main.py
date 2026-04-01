@@ -9,7 +9,7 @@ from typing import Any, Awaitable, Callable, Dict
 from utils.db.tgone_mysql import MySQLPool
 from config import BOT_MODE
 from config import WEBHOOK_HOST, WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT, WEBHOOK_SECRET
-from config import X_MAN_BOT_ID, BOT_TOKEN, REDIS_URL, MYSQL_DB, MYSQL_USER, MYSQL_PASSWORD, MYSQL_UNIX_SOCKET
+from config import X_MAN_BOT_ID, BOT_TOKEN, REDIS_URL, MYSQL_DB, MYSQL_USER, MYSQL_PASSWORD, MYSQL_UNIX_SOCKET, SWITCHBOT_TOKEN,SWITCHBOT_CHAT_ID,SWITCHBOT_THREAD_ID
 import lz_var
 from utils.tpl import Tplate
 
@@ -79,8 +79,53 @@ async def load_templates(ctx: AppCtx):
         json.dump(skins, f, ensure_ascii=False, indent=4)
     return {"ok":1, "skins": skins}
 
+
+
+
+async def say_hello(text:str = 'Started bot!'):
+    me = await lz_var.bot.get_me()
+    bot_name = me.username if me and me.username else "UnknownSwitchBot"
+    bot_id = me.id if me and me.id else 0
+    try:
+        await lz_var.switchbot.send_message(
+            chat_id=f"-100{SWITCHBOT_CHAT_ID}",
+            message_thread_id=SWITCHBOT_THREAD_ID,
+            text=f"[{bot_name} - {bot_id}] {text}",
+        )
+    except Exception as e:
+        print(
+            f"⚠️ say_hello 发送失败: chat_id={SWITCHBOT_CHAT_ID}, "
+            f"thread_id={SWITCHBOT_THREAD_ID}, error={e}",
+            flush=True,
+        )
+
+
 async def build_app() -> tuple[Bot, Dispatcher, RedisLayer]:
+
+    switchbot = Bot(token=SWITCHBOT_TOKEN)
+    lz_var.switchbot = switchbot
+    switchbot_info = await switchbot.get_me()
+
     bot = Bot(BOT_TOKEN)
+    me = await bot.get_me()
+    bot_name = me.username if me and me.username else "UnknownSwitchBot"
+    bot_id = me.id if me and me.id else 0
+
+    try:
+        await switchbot.send_message(
+            chat_id=f"-100{SWITCHBOT_CHAT_ID}",
+            message_thread_id=SWITCHBOT_THREAD_ID,
+            text=f"[{bot_name} - {bot_id}] Start",
+        )
+    except Exception as e:
+        print(
+            f"⚠️ say_hello 发送失败: chat_id={SWITCHBOT_CHAT_ID}, "
+            f"thread_id={SWITCHBOT_THREAD_ID}, error={e}",
+            flush=True,
+        )
+
+
+
     dp = Dispatcher()
 
     # Redis (Render KV)
@@ -173,6 +218,9 @@ async def run_webhook(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
         await runner.cleanup()
         await rlayer.rds.close()
         await bot.session.close()
+
+
+
 
 async def main():
     bot, dp, rlayer = await build_app()
