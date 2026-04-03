@@ -116,6 +116,7 @@ class HongbaoService:
                 c.board_chat_id,
                 c.board_message_id,
                 c.file_caption,
+                fe.file_type AS file_type,
                 fe.file_id AS file_id
             FROM cutedd c
             LEFT JOIN file_extension fe
@@ -149,6 +150,25 @@ class HongbaoService:
             """,
             (file_type, file_unique_id, file_id, bot, user_id),
         )
+
+    @staticmethod
+    async def get_file_type_by_file_id(file_id: str, bot: str | None = None) -> str:
+        if not file_id:
+            return ""
+
+        params = [file_id]
+        sql = """
+            SELECT file_type
+            FROM file_extension
+            WHERE file_id=%s
+        """
+        if bot:
+            sql += " AND bot=%s"
+            params.append(bot)
+        sql += " ORDER BY id DESC LIMIT 1"
+
+        row = await MySQLPool.fetchone(sql, tuple(params))
+        return (row or {}).get("file_type") or ""
 
     @classmethod
     async def in_block_list(cls, user_id: int) -> bool:

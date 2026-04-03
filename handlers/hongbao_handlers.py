@@ -409,11 +409,16 @@ async def _do_create_promote(id: int, ctx: AppCtx , msg: dict | None = None):
         dm_text = cutedd_row.get("file_caption") or ""
 
         dm_text = f"{dm_text}\r\n\r\n👇 喜欢我介绍的弟弟吗? 快点下面的「推广链结」喂他吃香蕉吧！👇"
+        push_cover_skin = lz_var.skins.get("push_cover", {})
+        cover_file_id = cutedd_row.get("file_id") or push_cover_skin.get("file_id", "")
+        cover_file_type = cutedd_row.get("file_type") or push_cover_skin.get("file_type", "")
 
         skin = {
                 "hb_key": f"rl:{id}",
-                "file_id_cover": cutedd_row.get("file_id") or lz_var.skins.get("push_cover", {}).get("file_id", ""),
-                "file_id_dm":cutedd_row.get("file_id") or lz_var.skins.get("push_cover", {}).get("file_id", ""),
+            "file_id_cover": cover_file_id,
+            "file_type_cover": cover_file_type,
+            "file_id_dm": cover_file_id,
+            "file_type_dm": cover_file_type,
                 "intro_text": cutedd_row.get("file_caption") or cutedd_row.get("description"),
                 "dm_text": dm_text,
                 "activity_link": f"https://t.me/c/{board_chat_id}/{board_message_thread_id}/{board_message_id}",
@@ -421,10 +426,13 @@ async def _do_create_promote(id: int, ctx: AppCtx , msg: dict | None = None):
     else:
         print(f"Creating promote for clt_id={id} by user_id={msg['sender_id'] if msg else 'N/A'}", flush=True)
         clt_row = await HongbaoService.get_user_collection(id=id)
+        push_cover_skin = lz_var.skins.get("push_cover", {})
         skin = {
                 "hb_key": f"clt{id}",
-                "file_id_cover": lz_var.skins.get("push_cover", {}).get("file_id", ""),
-                "file_id_dm":lz_var.skins.get("push_cover", {}).get("file_id", ""),
+            "file_id_cover": push_cover_skin.get("file_id", ""),
+            "file_type_cover": push_cover_skin.get("file_type", ""),
+            "file_id_dm": push_cover_skin.get("file_id", ""),
+            "file_type_dm": push_cover_skin.get("file_type", ""),
                 "intro_text": clt_row.get("description"),
                 "dm_text": clt_row.get("description"),
                 "activity_link": f"https://t.me/{lz_var.publish_bot_name}?start=clt_{id}",
@@ -445,6 +453,7 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
     total_amount = hongbao["total_amount"]
     expire_minutes = hongbao["expire_minutes"]
     skin = hongbao["skin"]
+    bot_name = getattr(lz_var, "bot_username", "") or ""
 
     mode = "promote"
     if msg and msg.get("mode"):
@@ -529,15 +538,29 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict):
         print(f"Generated hongbao message:\n{text}", flush=True)
         # sent = await message.answer(text, reply_markup=kb_claim(hid, lang))
         try:
-            sent = await ctx.bot.send_photo(
-                chat_id=msg['chat_id'],
-                message_thread_id=msg['message_thread_id'],
-                photo=skin["file_id_cover"],
-                caption=text,
-                parse_mode="HTML",
-                protect_content=True,
-                reply_markup=kb_claim(hid, lang),
-            )
+            cover_file_id = skin.get("file_id_cover")
+            cover_file_type = skin.get("file_type_cover") or await HongbaoService.get_file_type_by_file_id(cover_file_id, bot_name)
+
+            if cover_file_type == "video":
+                sent = await ctx.bot.send_video(
+                    chat_id=msg['chat_id'],
+                    message_thread_id=msg['message_thread_id'],
+                    video=cover_file_id,
+                    caption=text,
+                    parse_mode="HTML",
+                    protect_content=True,
+                    reply_markup=kb_claim(hid, lang),
+                )
+            else:
+                sent = await ctx.bot.send_photo(
+                    chat_id=msg['chat_id'],
+                    message_thread_id=msg['message_thread_id'],
+                    photo=cover_file_id,
+                    caption=text,
+                    parse_mode="HTML",
+                    protect_content=True,
+                    reply_markup=kb_claim(hid, lang),
+                )
             
 
         except TelegramForbiddenError as e:
@@ -850,14 +873,27 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             send_message_text += "\n\n<i>" + skin["dm_text"] + "</i>"
 
         try:
-            await ctx.bot.send_photo(
-                chat_id=uid,
-                photo=skin.get("file_id_dm"),
-                caption=send_message_text,
-                parse_mode="HTML",
-                protect_content=True,
-                reply_markup=kb_redeem(hid, amount, lang, skin.get("activity_link")),
-            )
+            dm_file_id = skin.get("file_id_dm")
+            dm_file_type = skin.get("file_type_dm") or await HongbaoService.get_file_type_by_file_id(dm_file_id, bot_name)
+
+            if dm_file_type == "video":
+                await ctx.bot.send_video(
+                    chat_id=uid,
+                    video=dm_file_id,
+                    caption=send_message_text,
+                    parse_mode="HTML",
+                    protect_content=True,
+                    reply_markup=kb_redeem(hid, amount, lang, skin.get("activity_link")),
+                )
+            else:
+                await ctx.bot.send_photo(
+                    chat_id=uid,
+                    photo=dm_file_id,
+                    caption=send_message_text,
+                    parse_mode="HTML",
+                    protect_content=True,
+                    reply_markup=kb_redeem(hid, amount, lang, skin.get("activity_link")),
+                )
         except TelegramBadRequest:
             await ctx.bot.send_message(
                 uid,
