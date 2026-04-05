@@ -720,13 +720,15 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
     # skin = next((s for s in RP_SKINS if s["hb_key"] == skin_key), None)
     skin = await HongbaoService.get_hongbao(hid) or {}
+    bot_name = getattr(lz_var, "bot_username", "") or str(ctx.bot.id)
 
     if base_msg:
         old_text = (base_msg.caption or base_msg.text or "")
        
 
         lang = ctx.lang
-        sender, total_amount, total_count, hb_sn, created_at = _parse_base(old_text, lang)
+        parsed_sender, total_amount, total_count, hb_sn, created_at = _parse_base(old_text, lang)
+        sender = await _resolve_sender_name(ctx, skin, parsed_sender, lang)
 
         items = _parse_items(old_text, lang)
 
@@ -1042,6 +1044,25 @@ def _parse_items(old_text: str, lang: str):
 
 def _fmt_cost(seconds: float) -> str:
     return ">5s" if seconds >= 5.0 else f"{seconds:.3f}s"
+
+
+async def _resolve_sender_name(ctx: AppCtx, skin: dict, parsed_sender: str, lang: str) -> str:
+    sender_user_id = int(skin.get("sender_user_id") or 0)
+    if sender_user_id > 0:
+        try:
+            chat = await ctx.bot.get_chat(sender_user_id)
+            if chat.first_name:
+                return chat.first_name
+            if chat.username:
+                return "@" + chat.username
+        except Exception:
+            pass
+
+    parsed_sender = (parsed_sender or "").strip()
+    if parsed_sender and parsed_sender != tr(lang, "default_someone"):
+        return parsed_sender
+
+    return tr(lang, "default_someone")
 
 
 
