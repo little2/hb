@@ -157,7 +157,7 @@ I18N = {
         # ---- regex patterns (must match above lines) ----
         "re_total": r"^🛡️\s*精量：\s*(\d+)\s*\s*$",
         "re_count": r"^💦\s*可射数：\s*(\d+)\s*（拼技巧）\s*$",
-        "re_header": r"^🏮\s*(.+?)\s*  带来了四个需要撸撸的龙嵬啦～\s*$",
+        "re_header": r"^🏮\s*(.+?)\s*推荐了资源以及需要撸撸的龙嵬啦～\s*$",
         "re_sn": r"^HB_SN:\s*(\d+)\s*$",
         "re_time": r"^⏰\s*(.+?)\s*$",
         "re_item": r"^\-\s*(.+?)\s*撸出了\s*(\d+)\s*滴精\s*\((.+?)\)\s*$",
