@@ -3,6 +3,7 @@ import random
 from typing import List, Optional, Tuple
 import time
 import redis.asyncio as redis
+from redis.exceptions import NoScriptError
 
 
 def k_list(hid: int) -> str: return f"hb:{hid}:list"
@@ -164,7 +165,7 @@ class RedisLayer:
         argv = ["0"]
         try:
             res = await self.rds.evalsha(self.sha_claim, len(keys), *keys, *argv)
-        except redis.exceptions.NoScriptError:
+        except NoScriptError:
             self.sha_claim = await self.rds.script_load(LUA_CLAIM)
             res = await self.rds.evalsha(self.sha_claim, len(keys), *keys, *argv)
 
@@ -179,7 +180,7 @@ class RedisLayer:
         argv = [str(claiming_ttl)]
         try:
             res = await self.rds.evalsha(self.sha_redeem, len(keys), *keys, *argv)
-        except redis.exceptions.NoScriptError:
+        except NoScriptError:
             self.sha_redeem = await self.rds.script_load(LUA_REDEEM_PREP)
             res = await self.rds.evalsha(self.sha_redeem, len(keys), *keys, *argv)
         return int(res[0]), int(res[1])
