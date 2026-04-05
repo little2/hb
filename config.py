@@ -16,6 +16,24 @@ try:
 except Exception as e:
     print(f"⚠️ 無法解析 CONFIGURATION：{e}")
 
+
+def _load_json_env(env_name: str) -> dict:
+    raw = os.getenv(env_name, '')
+    if not raw:
+        return {}
+
+    try:
+        value = json.loads(raw)
+    except Exception as e:
+        print(f"⚠️ 無法解析 {env_name}：{e}")
+        return {}
+
+    if not isinstance(value, dict):
+        print(f"⚠️ {env_name} 不是 JSON object，改用預設值")
+        return {}
+
+    return value
+
 # --- Bot runtime mode ---
 # polling | webhook
 BOT_MODE = os.getenv("BOT_MODE", "polling").lower()
@@ -63,10 +81,9 @@ TARGET_MESSAGE_THREAD_ID = config.get("target_message_thread_id", int(os.getenv(
 REVIEW_CHAT_ID = config.get("review_chat_id", int(os.getenv("REVIEW_CHAT_ID", "0")))
 REVIEW_MESSAGE_THREAD_ID = config.get("review_message_thread_id", int(os.getenv("REVIEW_MESSAGE_THREAD_ID", "0")))
 
-s_raw = os.getenv("SWITCHBOT_CONFIGURATION")
-s_conf = json.loads(s_raw)
-SWITCHBOT_CHAT_ID: int = s_conf["chat_id"]
-SWITCHBOT_THREAD_ID: int = s_conf["thread_id"]
-SWITCHBOT_TOKEN: str = s_conf["switchbot_token"]
+s_conf = _load_json_env("SWITCHBOT_CONFIGURATION")
+SWITCHBOT_CHAT_ID: int = int(s_conf.get("chat_id") or 0)
+SWITCHBOT_THREAD_ID: int = int(s_conf.get("thread_id") or 0)
+SWITCHBOT_TOKEN: str = str(s_conf.get("switchbot_token") or "")
 
 version = "0.1.1"
