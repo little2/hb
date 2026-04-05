@@ -109,7 +109,7 @@ I18N = {
         "btn_redeem": "🎁 领取 {amount} 滴龙精",
         "btn_done": "✅ 已取得龙精",
         "btn_expired": "☑️ 已过期",
-        "btn_activity": "🏆 推广链结",
+        "btn_activity": "🎁 今日福利",
 
         # ---- cmd_rp / validation ----
         "rp_group_only": "请在群里召唤龙嵬：/rp <精值> <可射数 >",
