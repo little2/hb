@@ -432,9 +432,14 @@ async def periodic_sender(db: NewsDatabase):
             else:
                 for row in rows:
                     news_id = row["id"]
-                    fuid = row["thumb_file_unique_id"]
+                    fuid = row["thumb_file_unique_id"] or None
                     bt = row.get("business_type") or "news"
+                    if not fuid:
+                        print(f"⚠️ 新闻 ID={news_id} 缺失 thumb_file_unique_id，无法请求补档", flush=True)
+                        continue
+
                     try:
+                        print(f"📤 请求补档：news_id={news_id}, business_type={bt}, fuid={fuid}", flush=True)
                         # 记挂起映射：FUID -> {news_id, business_type, ts}
                         pending_fuid_requests[fuid] = {
                             "news_id": news_id,
@@ -446,9 +451,11 @@ async def periodic_sender(db: NewsDatabase):
                         await asyncio.sleep(1)
                         await db.add_retry_count_for_news_id(news_id)
                     except Exception as e:
-                        await switch_bot.send_message(chat_id=X_MAN_BOT_ID,  text=f"|_kick_|@{_bot_username}")
-                        await switch_bot.send_message(chat_id=SWITCHBOT_CHAT_ID, message_thread_id=SWITCHBOT_THREAD_ID, text=f"⚠️ 无法联系老板( {X_MAN_BOT_ID} ) 已kick,  补档 news_id={news_id}, fuid={fuid}")
                         print(f"⚠️ 发送请求给 {X_MAN_BOT_ID} 失败: {e}", flush=True)
+                        r1 = await switch_bot.send_message(chat_id=X_MAN_BOT_ID,  text=f"|_kick_|@{_bot_username}")
+                        print(f"r1={r1}")
+                        r2=await switch_bot.send_message(chat_id=SWITCHBOT_CHAT_ID, message_thread_id=SWITCHBOT_THREAD_ID, text=f"⚠️ 无法联系老板( {X_MAN_BOT_ID} ) 已kick,  补档 news_id={news_id}, fuid={fuid}")
+                        print(f"r2={r2}")
                         # 失败也清掉挂起，避免僵尸条目
                         # pending_fuid_requests.pop(fuid, None)
                         continue
