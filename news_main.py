@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import os
 import json
 import time
@@ -46,6 +47,8 @@ db = NewsDatabase(DB_DSN, max_size=2)
 
 _bot_username: str = ""
 _manual_update_lock = asyncio.Lock()
+_background_tasks: list[asyncio.Task] = []
+_resources_closed = False
 
 lz_var_start_time = time.time()
 lz_var_cold_start_flag = True
@@ -53,6 +56,29 @@ crypto = AESCrypto(AES_KEY)
 
 
 switch_bot = Bot(token=SWITCHBOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
+
+def track_background_task(task: asyncio.Task) -> asyncio.Task:
+    _background_tasks.append(task)
+
+    def _cleanup(done_task: asyncio.Task) -> None:
+        with contextlib.suppress(ValueError):
+            _background_tasks.remove(done_task)
+
+    task.add_done_callback(_cleanup)
+    return task
+
+
+async def cancel_background_tasks() -> None:
+    current_task = asyncio.current_task()
+    tasks = [task for task in list(_background_tasks) if task is not current_task and not task.done()]
+    for task in tasks:
+        task.cancel()
+    for task in tasks:
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+
 async def say_hello(text:str = 'Started news bot!'):
     me = await bot.get_me()
     bot_name = me.username if me and me.username else "UnknownSwitchBot"
@@ -94,10 +120,33 @@ async def safe_reply(message: Message, text: str, **kwargs):
 
 
 async def close_resources():
+    global _resources_closed
+    if _resources_closed:
+        return
+
+    _resources_closed = True
+
+    try:
+        await cancel_background_tasks()
+    except Exception as e:
+        print(f"⚠️ 取消背景任务失败: {e}", flush=True)
+
     try:
         await db.close()
     except Exception as e:
         print(f"⚠️ 关闭数据库连接失败: {e}", flush=True)
+
+    try:
+        from utils.db.tgone_mysql import MySQLPool
+        await MySQLPool.close()
+    except Exception as e:
+        print(f"⚠️ 关闭 MySQL 连接池失败: {e}", flush=True)
+
+    try:
+        from utils.db.tgone_pgsql import PGPool
+        await PGPool.close()
+    except Exception as e:
+        print(f"⚠️ 关闭 PostgreSQL 同步连接池失败: {e}", flush=True)
 
     for session_name, current_bot in (("bot", bot), ("switch_bot", switch_bot)):
         try:
@@ -527,7 +576,6 @@ async def keep_alive_ping():
 
 
 async def main():
-    should_close_resources = True
     try:
         await db.init()
         await db.ensure_schema()
@@ -556,19 +604,16 @@ async def main():
                 await get_scheduler_from_app(app).spawn(sync_db())
                 await get_scheduler_from_app(app).spawn(periodic_sender(db))
 
-            asyncio.create_task(keep_alive_ping())
+            track_background_task(asyncio.create_task(keep_alive_ping()))
             app.on_startup.append(on_app_start)
             app.on_shutdown.append(on_shutdown)
 
             port = int(os.environ.get("PORT", 8080))
-            should_close_resources = False
             await web._run_app(app, host="0.0.0.0", port=port)
         else:
             await bot.delete_webhook(drop_pending_updates=True)
-            loop = asyncio.get_event_loop()
-            loop.create_task(sync_db())
-            loop.create_task(periodic_sender(db))
-            should_close_resources = False
+            track_background_task(asyncio.create_task(sync_db()))
+            track_background_task(asyncio.create_task(periodic_sender(db)))
             await dp.start_polling(
                 bot,
                 skip_updates=True,
@@ -576,8 +621,7 @@ async def main():
                 relax=3.0
             )
     finally:
-        if should_close_resources:
-            await close_resources()
+        await close_resources()
 
 
 if __name__ == "__main__":
