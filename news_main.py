@@ -159,7 +159,7 @@ async def start_handler(message: Message, command: CommandObject):
             if len(parts) != 3:
                 raise ValueError("格式不正确")
 
-            business_type = {"yz": "stone", "sl": "salai"}.get(parts[0], "unknown")
+            business_type = {"yz": "stone", "sl": "salai", "xlj": "xlj"}.get(parts[0], "unknown")
             expire_ts = Base62Converter.base62_to_decimal(parts[1])
             user_id = Base62Converter.base62_to_decimal(parts[2])
             # 你的编码是从 2025-01-01 00:00:00 起点（1735689600）
