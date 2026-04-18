@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 import json
-import lz_var
+
 
 load_dotenv(dotenv_path=".news.env")
 DB_DSN = os.getenv("DB_DSN")
@@ -45,7 +45,5 @@ X_MAN_BOT_USERNAME: str = str(x_conf.get("x_man_bot_username") or "")
 bot_raw = os.getenv("BOT_CONFIGURATION")
 bot_conf = _load_json_env("BOT_CONFIGURATION")
 
-lz_var.publish_bot_name = str(bot_conf.get("publish_bot_name") or "")
-lz_var.uploader_bot_name = str(bot_conf.get("uploader_bot_name") or "")
-lz_var.guider_bot_name = str(bot_conf.get("guider_bot_name") or "")
+
 

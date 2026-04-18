@@ -14,7 +14,7 @@ from aiogram.filters import Command, CommandObject
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiojobs.aiohttp import setup as setup_aiojobs
 from aiojobs.aiohttp import get_scheduler_from_app
-import lz_var
+
 
 from aiogram.types import (
     Message,
@@ -38,9 +38,9 @@ from handlers.news_handlers import (
 from news_config import X_MAN_BOT_ID,BOT_TOKEN, DB_DSN, AES_KEY, BOT_MODE, WEBHOOK_PATH, WEBHOOK_HOST,SWITCHBOT_CHAT_ID,SWITCHBOT_THREAD_ID,SWITCHBOT_TOKEN
 from utils.aes_crypto import AESCrypto
 from utils.base62_converter import Base62Converter
+from utils.remote_setting import _fetch_remote_bot_setting
 
-
-
+remote_config = _fetch_remote_bot_setting()
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 db = NewsDatabase(DB_DSN, max_size=2)
@@ -237,32 +237,37 @@ async def start_handler(message: Message, command: CommandObject):
 
     
 def main_menu_keyboard():
+    global remote_config
+    uploader_bot_name = (remote_config or {}).get("uploader_bot_name")
+    publish_bot_name = (remote_config or {}).get("publish_bot_name")
+    guider_bot_name = (remote_config or {}).get("guider_bot_name")
+
     keyboard = [
         [
-            InlineKeyboardButton(text="🔍 搜索", url=f"https://t.me/{lz_var.publish_bot_name}?start=search", callback_data=""),
-            InlineKeyboardButton(text="🏆 排行", url=f"https://t.me/{lz_var.publish_bot_name}?start=rank",callback_data=""),
+            InlineKeyboardButton(text="🔍 搜索", url=f"https://t.me/{publish_bot_name}?start=search", callback_data=""),
+            InlineKeyboardButton(text="🏆 排行", url=f"https://t.me/{publish_bot_name}?start=rank",callback_data=""),
         ],
     ]
 
     # 仅在 dev 环境显示「资源橱窗」 PUBLISH_BOT_TOKEN
 
     keyboard.append([
-        InlineKeyboardButton(text="🪟 资源橱窗", url=f"https://t.me/{lz_var.publish_bot_name}?start=collection",callback_data=""),
-        InlineKeyboardButton(text="🕑 我的历史", url=f"https://t.me/{lz_var.publish_bot_name}?start=history", callback_data=""),
+        InlineKeyboardButton(text="🪟 资源橱窗", url=f"https://t.me/{publish_bot_name}?start=collection",callback_data=""),
+        InlineKeyboardButton(text="🕑 我的历史", url=f"https://t.me/{publish_bot_name}?start=history", callback_data=""),
     ])
 
 
     keyboard.append([
         InlineKeyboardButton(
             text="📤 上传资源",
-            url=f"https://t.me/{lz_var.uploader_bot_name}?start=upload"
+            url=f"https://t.me/{uploader_bot_name}?start=upload"
         )
     ])
 
     keyboard.append([
         InlineKeyboardButton(
             text="🐲 小龙阳",
-            url=f"https://t.me/{lz_var.guider_bot_name}?start=map"
+            url=f"https://t.me/{guider_bot_name}?start=map"
         )
     ])
 
