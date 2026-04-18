@@ -38,9 +38,12 @@ from handlers.news_handlers import (
 from news_config import X_MAN_BOT_ID,BOT_TOKEN, DB_DSN, AES_KEY, BOT_MODE, WEBHOOK_PATH, WEBHOOK_HOST,SWITCHBOT_CHAT_ID,SWITCHBOT_THREAD_ID,SWITCHBOT_TOKEN
 from utils.aes_crypto import AESCrypto
 from utils.base62_converter import Base62Converter
-from utils.remote_setting import _fetch_remote_bot_setting
 
-remote_config = _fetch_remote_bot_setting()
+
+from shared_config import SharedConfig
+SharedConfig.load()
+
+
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 db = NewsDatabase(DB_DSN, max_size=2)
@@ -237,10 +240,9 @@ async def start_handler(message: Message, command: CommandObject):
 
     
 def main_menu_keyboard():
-    global remote_config
-    uploader_bot_name = (remote_config or {}).get("uploader_bot_name")
-    publish_bot_name = (remote_config or {}).get("publish_bot_name")
-    guider_bot_name = (remote_config or {}).get("guider_bot_name")
+    uploader_bot_name = SharedConfig.get("uploader_bot_name") or "unknown_bot"
+    publish_bot_name = SharedConfig.get("publish_bot_name") or "unknown_bot"
+    guider_bot_name = SharedConfig.get("guider_bot_name") or "unknown_bot"
 
     keyboard = [
         [
