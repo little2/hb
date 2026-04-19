@@ -63,7 +63,7 @@ pending_cover_upload_users: set[int] = set()
 
 CALL_MENU_TTL_SEC = 600
 CALL_MENU_ACT_ID = "20000008"
-CALL_MENU_BOT_NAME = "fix807bot"
+
 
 
 def _build_group_message_link(chat_id: int, message_id: int, thread_id: int | None = None) -> str:
@@ -354,7 +354,8 @@ async def _load_cached_call_rows(ctx: AppCtx, user_id: int) -> list[dict]:
 async def _build_call_rows_for_user(ctx: AppCtx, user_id: int) -> list[dict]:
     setting = await HongbaoService.get_hongbao_user_setting(user_id)
     bias = (setting or {}).get("bias")
-    rows = await HongbaoService.list_call_cutedd(CALL_MENU_BOT_NAME, CALL_MENU_ACT_ID)
+    bot_username = getattr(lz_var, "bot_username", "") or ""
+    rows = await HongbaoService.list_call_cutedd(bot_username, CALL_MENU_ACT_ID)
 
     _run_missing_call_file_ids_in_background(rows, max_count=20)
     ordered_rows = _sort_call_rows_by_bias(rows, int(bias) if bias is not None else None)
