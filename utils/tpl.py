@@ -198,7 +198,8 @@ class Tplate:
 
 
         default_skins = {
-            "push_cover": {"file_id": "", "file_unique_id": "AQAD9wtrG3ZWyER-"}
+            "push_cover": {"file_id": "", "file_unique_id": "AQAD9wtrG3ZWyER-"},
+            "hb_cover": {"file_id": "", "file_unique_id": "AQADYxBrG-RDIFd9"},
         }
 
      
@@ -253,6 +254,9 @@ class Tplate:
         need_fix = [(k, v) for k, v in skins.items() if not v.get("file_id") and v.get("file_unique_id")]
         for name, obj in need_fix:
             fu = obj["file_unique_id"]
+            if not lz_var.x_man_bot_id:
+                print(f"⚠️ 跳过向 x-man 请求 file_id：x_man_bot_id 未配置 - {fu}", flush=True)
+                return {"ok": None, "handshake": "x_man_bot_id_missing"}
             print(f"🧾 {name}: 向 x-man {lz_var.x_man_bot_id} 请求 file_id…（{fu}）")
             try:
                 msg = await lz_var.bot.send_message(chat_id=lz_var.x_man_bot_id, text=f"{fu}")

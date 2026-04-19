@@ -1,16 +1,16 @@
 
-RP_SKINS = [
+RP_SKINS1 = [
     {
         "hb_key": "sz",
-        "file_id_cover": "AgACAgEAAxkBAAIPmml_GzvtyG5iqClOGjOEbG5NcANxAAI5DGsblFP4R6fkeNHfUeyfAQADAgADeQADOAQ",
-        "file_id_dm":"AgACAgEAAxkBAAIPmml_GzvtyG5iqClOGjOEbG5NcANxAAI5DGsblFP4R6fkeNHfUeyfAQADAgADeQADOAQ",
+        "file_id_cover": "AgACAgUAAxkBAAIB3WnjoDJ4rbhTD7_AIHakHHO8JJMbAAIFEGsb5EMgV12NInU9-LTDAQADAgADeQADOwQ",
+        "file_id_dm":"AgACAgUAAxkBAAIB3WnjoDJ4rbhTD7_AIHakHHO8JJMbAAIFEGsb5EMgV12NInU9-LTDAQADAgADeQADOwQ",
         "intro_text": "龙嵬成熟后，虽是正太模样，但精液的生产效率极高，从里面慢慢充满、撑大，变得又硬又紧，碰一下都会疼，不处理的话会越来越难受，需要各位好心撸夫帮忙榨精。",
         "dm_text": "谢谢撸夫哥哥帮忙，龙嵬已经舒服多了！\n\n可以点下面的按钮逛逛鲁仔喔",
         "activity_link": "https://t.me/luzai03bot?start=rank",
     }
 ]    
 
-RP_SKINS1 = [
+RP_SKINS = [
     {
         "hb_key": "sz",
         "file_id_cover": "AgACAgEAAxkBAAMPaX8pAgJj9Am5lLwhmpt-IjS15TsAAjkMaxuUU_hHeBD_jjC7RMYBAAMCAAN5AAM4BA",
@@ -103,7 +103,7 @@ RP_SKINS1 = [
 
 
 I18N = {
-    "zh": {
+    "lj": {
         # ---- buttons ----
         "btn_claim": "💦 抢龙精积分",
         "btn_redeem": "🎁 领取 {amount} 滴龙精",
@@ -112,10 +112,11 @@ I18N = {
         "btn_activity": "🎁 今日福利",
 
         # ---- cmd_rp / validation ----
-        "rp_group_only": "请在群里召唤龙嵬：/rp <精值> <可射数 >",
-        "rp_usage": "用法：/rp <精值> <可射数> \n例如：/rp 100 10 5",
+        "rp_group_only": "请在群里召唤龙嵬：/rp <精值> <可射数> [留言]",
+        "rp_usage": "用法：/rp <精值> <可射数> [留言]\n例如：/rp 100 10 帮我榨干他",
         "rp_param_int": "参数必须是整数。",
         "rp_count_range": "可射数必须在 1~{max_count}。",
+        "rp_total_range": "总精值必须在 1~{max_total}。",
         "rp_total_too_small": "总精值必须 >= 可射数*{min_unit}（至少每次 {min_unit}）。",
         "rp_expire_invalid": "有效分钟必须 > 0。",
         "re_insufficient_funds": "❌ 召唤失败：余额不足。你的积分可能过低，无法召唤龙嵬。请检查你的余额并重试。",
@@ -163,19 +164,20 @@ I18N = {
         "re_item": r"^\-\s*(.+?)\s*撸出了\s*(\d+)\s*滴精\s*\((.+?)\)\s*$",
         "re_king": r"👑\s*撸王：(.+?)\s*撸出了\s*(\d+)\s*滴精"
     },
-    "zh1": {
+    "hb": {
         # ---- buttons ----
         "btn_claim": "🧧 抢红包",
-        "btn_redeem": "✅ 领取 {amount} 积分",
+        "btn_redeem": "🎁 领取 {amount} 积分",
         "btn_done": "✅ 已领取",
         "btn_expired": "☑️ 已过期",
-        "btn_activity": "🏆 特典链结",
+        "btn_activity": "🧧 我也发红包",
 
         # ---- cmd_rp / validation ----
-        "rp_group_only": "请在群里创建红包：/rp <总积分> <份数> [有效分钟]",
-        "rp_usage": "用法：/rp <总积分> <份数> [有效分钟]\n例如：/rp 100 10 5",
+        "rp_group_only": "请在群里创建红包：/hb <总积分> <份数> [留言]",
+        "rp_usage": "用法：/hb <总积分> <份数> [留言]\n例如：/hb 100 10 恭喜发财",
         "rp_param_int": "参数必须是整数。",
         "rp_count_range": "份数必须在 1~{max_count}。",
+        "rp_total_range": "总积分必须在 1~{max_total}。",
         "rp_total_too_small": "总积分必须 >= 份数*{min_unit}（至少每份 {min_unit}）。",
         "rp_expire_invalid": "有效分钟必须 > 0。",
         "re_insufficient_funds": "❌ 发送失败：余额不足。你的账户积分可能过低，无法创建红包。请检查你的余额并重试。",
@@ -231,10 +233,11 @@ I18N = {
         "btn_expired": "☑️ Expired",
         "btn_activity": "🏆 Activity Link",
 
-        "rp_group_only": "Create in group: /rp <total> <count> [minutes]",
-        "rp_usage": "Usage: /rp <total> <count> [minutes]\nExample: /rp 100 10 5",
+        "rp_group_only": "Create in group: /rp <total> <count> [message]",
+        "rp_usage": "Usage: /rp <total> <count> [message]\nExample: /rp 100 10 good luck",
         "rp_param_int": "Parameters must be integers.",
         "rp_count_range": "Count must be 1~{max_count}.",
+        "rp_total_range": "Total must be 1~{max_total}.",
         "rp_total_too_small": "Total must be >= count*{min_unit} (min {min_unit} each).",
         "rp_expire_invalid": "Minutes must be > 0.",
         "re_insufficient_funds": "❌ Refund failed: insufficient funds. Your account points may be too low to create a hongbao. Please check your balance and try again.",

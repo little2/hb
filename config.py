@@ -64,6 +64,7 @@ WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")             # recommended
 # --- Hongbao rules ---
 MIN_UNIT = int(os.getenv("MIN_UNIT", "1"))
 MAX_COUNT = int(os.getenv("MAX_COUNT", "50"))
+MAX_TOTAL_AMOUNT = int(os.getenv("MAX_TOTAL_AMOUNT", "667"))
 DEFAULT_EXPIRE_MINUTES = int(os.getenv("DEFAULT_EXPIRE_MINUTES", "180"))
 
 # --- Optional throttles / safety ---

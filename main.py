@@ -16,11 +16,14 @@ from utils.tpl import Tplate
 assert BOT_TOKEN, "BOT_TOKEN is required"
 assert REDIS_URL, "REDIS_URL is required"
 assert MYSQL_DB, "MYSQL_DB_NAME is required"
-import lz_var 
+
 
 from infra.redis_layer import RedisLayer
 from handlers.hongbao_handlers import router
 from handlers.hongbao_handlers import AppCtx
+from shared_config import SharedConfig
+SharedConfig.load()
+
 
 class CtxMiddleware(BaseMiddleware):
     def __init__(self, ctx: AppCtx):
@@ -46,7 +49,11 @@ async def load_templates(ctx: AppCtx):
     lz_var.bot = ctx.bot
     lz_var.bot_username = bot_name
     lz_var.bot_id = bot_info.id
-    lz_var.x_man_bot_id = X_MAN_BOT_ID
+    shared_x_man_bot_id = SharedConfig.get("x_man_bot_id")
+    lz_var.x_man_bot_id = int(shared_x_man_bot_id or X_MAN_BOT_ID or lz_var.x_man_bot_id or 0)
+    lz_var.publish_bot_name = SharedConfig.get("publish_bot_name") or lz_var.publish_bot_name or ""
+    lz_var.uploader_bot_name = SharedConfig.get("uploader_bot_name") or lz_var.uploader_bot_name or ""
+    lz_var.guider_bot_name = SharedConfig.get("guider_bot_name") or lz_var.guider_bot_name or ""
     config_path = f"{bot_name}_skins.json"
     # print(f"🔍 载入或生成皮肤配置文件：{config_path}")
 
@@ -59,9 +66,10 @@ async def load_templates(ctx: AppCtx):
 
 
     # 默认注入 PGPool（外部可传入别的实现）
-    default_skins = {
-        "push_cover": {"file_id": "", "file_unique_id": "AQAD9wtrG3ZWyER-"}
-    }
+    # default_skins = {
+    #     "push_cover": {"file_id": "", "file_unique_id": "AQAD9wtrG3ZWyER-"},
+    #     "hb_cover": {"file_id": "", "file_unique_id": "AQADYxBrG-RDIFd9"},
+    # }
 
     if os.path.exists(config_path):
         try:
@@ -70,9 +78,9 @@ async def load_templates(ctx: AppCtx):
                 # print(f"✅ 载入已有皮肤配置文件：{skins}")
         except Exception as e:
             print(f"⚠️ 无法读取 {config_path}，将重新生成：{e}")
-            skins = default_skins.copy()
+            skins = load_result.copy()
     else:
-        skins = default_skins.copy()
+        skins = load_result.copy()
 
     # --- 写入文件（即便有缺） ---
     with open(config_path, "w", encoding="utf-8") as f:
@@ -98,7 +106,6 @@ async def say_hello(text:str = 'Started bot!'):
             f"thread_id={SWITCHBOT_THREAD_ID}, error={e}",
             flush=True,
         )
-
 
 async def build_app() -> tuple[Bot, Dispatcher, RedisLayer]:
 
@@ -165,12 +172,11 @@ async def build_app() -> tuple[Bot, Dispatcher, RedisLayer]:
     print(f"Bot started as @{bot_info.username} (id: {bot_info.id})")
 
     ret = await load_templates(ctx)  # 预先加载模板（可选，首次运行会生成默认文件）
-    print(f"Template load result: {ret}")
+    # print(f"Template load result: {ret}")
 
     dp.update.outer_middleware(CtxMiddleware(ctx))
     dp.include_router(router)
     return bot, dp, rlayer
-
 
 async def run_polling(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
     try:
@@ -179,7 +185,6 @@ async def run_polling(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
     finally:
         await rlayer.rds.close()
         await bot.session.close()
-
 
 async def run_webhook(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
     if not WEBHOOK_HOST:
@@ -219,9 +224,6 @@ async def run_webhook(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
         await rlayer.rds.close()
         await bot.session.close()
 
-
-
-
 async def main():
     bot, dp, rlayer = await build_app()
 
@@ -231,7 +233,6 @@ async def main():
         await run_webhook(bot, dp, rlayer)
     else:
         raise RuntimeError("BOT_MODE must be 'polling' or 'webhook'")
-
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -2,13 +2,11 @@ from __future__ import annotations
 from datetime import datetime
 import time
 import aiomysql
-
 from utils.db.tgone_mysql import MySQLPool
-
 
 class HongbaoService:
     @staticmethod
-    async def create_hongbao(sender_user_id: int, chat_id: int, total_amount: int, total_count: int, expire_at: datetime, skin: dict | None = None) -> int:
+    async def create_hongbao(sender_user_id: int, chat_id: int, total_amount: int, total_count: int, expire_at: datetime, skin: dict | None = None, hb_type: str = "lj") -> int:
 
         # {
         #     "hb_key": "sz",
@@ -24,14 +22,15 @@ class HongbaoService:
         intro_text = skin["intro_text"] if skin else None
         dm_text = skin["dm_text"] if skin else None
         activity_link = skin["activity_link"] if skin else None
+        hb_type = hb_type or "lj"
 
 
         await MySQLPool.execute(
             """
-            INSERT INTO hongbao(sender_user_id, chat_id, total_amount, total_count, expire_at, status, hb_key, file_id_cover, file_id_dm, intro_text, dm_text, activity_link)
-            VALUES(%s, %s, %s, %s, %s, 'active', %s, %s, %s, %s, %s, %s)
+            INSERT INTO hongbao(sender_user_id, chat_id, total_amount, total_count, expire_at, status, hb_key, hb_type, file_id_cover, file_id_dm, intro_text, dm_text, activity_link)
+            VALUES(%s, %s, %s, %s, %s, 'active', %s, %s, %s, %s, %s, %s, %s)
             """,
-            (sender_user_id, chat_id, total_amount, total_count, expire_at, hb_key, file_id_cover, file_id_dm, intro_text, dm_text, activity_link),
+            (sender_user_id, chat_id, total_amount, total_count, expire_at, hb_key, hb_type, file_id_cover, file_id_dm, intro_text, dm_text, activity_link),
         )
         row = await MySQLPool.fetchone("SELECT LAST_INSERT_ID() AS id")
         return int(row["id"])
@@ -41,7 +40,7 @@ class HongbaoService:
         await MySQLPool.execute("UPDATE hongbao SET message_id=%s WHERE id=%s", (message_id, hongbao_id))
 
     @staticmethod
-    async def redeem_add_points(hongbao_id: int, user_id: int, amount: int) -> tuple[bool, str]:
+    async def redeem_add_points(hongbao_id: int, user_id: int, amount: int, skin: dict | None = None) -> tuple[bool, str]:
         async def _txn(cur):
             # 唯一键防重复领取
             await cur.execute(
@@ -60,14 +59,30 @@ class HongbaoService:
             # )
             stat_date = datetime.now().strftime("%Y-%m-%d")
             timestamp = int(datetime.now().timestamp())
-            await cur.execute(
-                """
-                INSERT INTO `contribute_today` (user_id, stat_date, update_timestamp, drangon)
-                VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE drangon = drangon + %s, update_timestamp = %s
-                """,
-                (user_id, stat_date, timestamp, amount, amount, timestamp),
-            )           
+            hb_type = skin.get("hb_type") if skin else None
+            if hb_type=="hb":
+                print(f"⚡ 特例红包，直接写入 transaction 表，user_id={user_id}, amount={amount}")
+                sender_id = skin.get("sender_id") or 666666
+                transaction_description = skin.get("id") or 0
+                memo = skin.get("hb_key") or ""
+
+                await cur.execute(
+                    """
+                    INSERT INTO `transaction` (sender_id, sender_fee, receiver_id, receiver_fee, transaction_type, transaction_description, transaction_timestamp, memo)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (sender_id, amount, user_id, amount, 'hongbao', transaction_description, timestamp, memo),
+                ) 
+            else:    
+                print(f"⚡ 常规红包，写入 contribute_today 表，user_id={user_id}, amount={amount}, stat_date={stat_date}")
+                await cur.execute(
+                    """
+                    INSERT INTO `contribute_today` (user_id, stat_date, update_timestamp, drangon)
+                    VALUES (%s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE drangon = drangon + %s, update_timestamp = %s
+                    """,
+                    (user_id, stat_date, timestamp, amount, amount, timestamp),
+                )           
 
         try:
             await MySQLPool.transaction(_txn)
@@ -131,6 +146,30 @@ class HongbaoService:
         return row
 
     @staticmethod
+    async def list_call_cutedd(bot_name: str, act_id: str = "20000008") -> list[dict]:
+        rows = await MySQLPool.fetchall(
+            """
+            SELECT
+                c.cutedd_id,
+                c.dd_thread_id,
+                c.file_unique_id,
+                COALESCE(e.file_id, '') AS file_id,
+                c.file_type,
+                c.file_caption,
+                c.send_status
+            FROM cutedd c
+            LEFT JOIN file_extension e
+                ON c.file_unique_id = e.file_unique_id
+               AND e.bot = %s
+            WHERE c.send_status = 1
+              AND c.act_id = %s
+            ORDER BY c.dd_thread_id, c.file_caption ASC
+            """,
+            (bot_name, act_id),
+        )
+        return rows or []
+
+    @staticmethod
     async def upsert_file_extension(
         file_type: str,
         file_unique_id: str,
@@ -150,6 +189,48 @@ class HongbaoService:
             """,
             (file_type, file_unique_id, file_id, bot, user_id),
         )
+
+    @staticmethod
+    async def upsert_hongbao_user_setting(
+        user_id: int,
+        cover_type: str,
+        cover_file_id: str,
+        cover_file_unique_id: str,
+        bias: int | None = None,
+    ) -> bool:
+        async def _txn(cur):
+            await cur.execute(
+                """
+                UPDATE hongbao_user_setting
+                SET cover_type=%s, cover_file_id=%s, cover_file_unique_id=%s, bias=COALESCE(%s, bias)
+                WHERE user_id=%s
+                """,
+                (cover_type, cover_file_id, cover_file_unique_id, bias, user_id),
+            )
+
+            if cur.rowcount == 0:
+                await cur.execute(
+                    """
+                    INSERT INTO hongbao_user_setting(user_id, cover_type, cover_file_id, cover_file_unique_id, bias)
+                    VALUES(%s, %s, %s, %s, %s)
+                    """,
+                    (user_id, cover_type, cover_file_id, cover_file_unique_id, bias),
+                )
+
+            return True
+
+        try:
+            return bool(await MySQLPool.transaction(_txn))
+        except Exception:
+            return False
+
+    @staticmethod
+    async def get_hongbao_user_setting(user_id: int) -> dict | None:
+        row = await MySQLPool.fetchone(
+            "SELECT * FROM hongbao_user_setting WHERE user_id=%s LIMIT 1",
+            (user_id,)
+        )
+        return row
 
     @staticmethod
     async def get_file_type_by_file_id(file_id: str, bot: str | None = None) -> str:
