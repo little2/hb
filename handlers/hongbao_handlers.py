@@ -892,7 +892,7 @@ async def handle_hb_menu_home(callback: CallbackQuery, ctx: AppCtx):
 
 
 
-@router.message(Command("rp"))
+@router.message(Command(commands=["hb", "rp", "hongbao"]))
 async def cmd_hb(message: Message, ctx: AppCtx):
     hb_type = "hb"
     ctx.lang = "hb"  
@@ -1790,7 +1790,7 @@ async def handle_set_comment_command(message: Message, state: FSMContext):
     await bot.set_my_commands(
         commands=[
             BotCommand(command="start", description="首页菜单"),
-            BotCommand(command="rp", description="发送积分红包"),
+            BotCommand(command="hb", description="发送积分红包"),
             BotCommand(command="lj", description="发送龙精红包"),
             BotCommand(command="home", description="回家"),
         ],
@@ -1799,7 +1799,7 @@ async def handle_set_comment_command(message: Message, state: FSMContext):
 
     await bot.set_my_commands(
         commands=[
-            BotCommand(command="rp", description="发送积分红包"),
+            BotCommand(command="hb", description="发送积分红包"),
             BotCommand(command="lj", description="发送龙精红包"),
         ],
         scope=BotCommandScopeAllGroupChats()
