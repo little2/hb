@@ -734,8 +734,8 @@ async def handle_home(message: Message, ctx: AppCtx):
 async def handle_hb_menu_settings(callback: CallbackQuery, ctx: AppCtx):
     text = (
         "<blockquote>发送红包指令</blockquote>\n"
-        "🧧 积分红包：/rp [总积分] [份数] [留言]\n"
-        "<i>例如：/rp 100 10 恭喜发财</i>\n\n"
+        "🧧 积分红包：/hb [总积分] [份数] [留言]\n"
+        "<i>例如：/hb 100 10 恭喜发财</i>\n\n"
         "💦 龙精红包：/lj [精值] [可射数] [留言]\n"
         "<i>例如：/lj 100 10 帮我榨干他</i>\n\n"
         "🎈 可以在大群各主题版下指令发红，若是私聊机器人，默认发送到闲聊区\n\n"
