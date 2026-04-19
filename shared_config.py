@@ -83,8 +83,13 @@ class SharedConfig:
                 print("✅ 配置已从 API 下载并写入本地缓存")
             except Exception as e:
                 print(f"⚠️ API 下载失败，改读本地缓存: {e}")
-                cls._data = cls._load_from_local()
-                print("⚠️ 配置已从本地缓存载入")
+                try:
+                    cls._data = cls._load_from_local()
+                    print("⚠️ 配置已从本地缓存载入")
+                except FileNotFoundError:
+                    cls._data = {}
+                    cls._save_to_local(cls._data)
+                    print("⚠️ 本地缓存不存在，已使用空配置初始化")
 
             cls._loaded = True
 
