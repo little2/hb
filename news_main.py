@@ -200,6 +200,16 @@ async def handle_set_comment_command(message: Message):
     )
     print("✅ 已设置命令列表", flush=True)
 
+
+@dp.message(Command("update_setting"))
+async def update_setting_handler(message: Message):
+    try:
+        SharedConfig.load(True)
+        await safe_reply(message, "✅ 共享设定已更新")
+    except Exception as e:
+        print(f"⚠️ update_setting failed: {e}", flush=True)
+        await safe_reply(message, "⚠️ 更新共享设定失败，请稍后重试")
+
 @dp.message(Command("start"))
 async def start_handler(message: Message, command: CommandObject):
     args = command.args
