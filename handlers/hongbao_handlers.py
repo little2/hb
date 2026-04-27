@@ -29,6 +29,7 @@ from config import (
 from infra.redis_layer import RedisLayer, split_amounts
 from services.hongbao_service import HongbaoService
 from shared_config import SharedConfig
+SharedConfig.load()
 
 from material import RP_SKINS, I18N
 
@@ -716,6 +717,7 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
 
 @router.message(F.chat.type == ChatType.PRIVATE, Command("home"))
 async def handle_home(message: Message, ctx: AppCtx):
+
     url_school = SharedConfig.get("school_invite_link", "")
     text = "欢迎回家 \r\n\r\n"
     text += f"🔗 <a href='{url_school}'>🐲 龙阳学院</a>\r\n\r\n"
