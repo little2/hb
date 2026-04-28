@@ -22,12 +22,35 @@ def _caller_info():
     return "unknown"
 
 
+def _is_disconnect_error(exc: BaseException) -> bool:
+    """判断是否为可重试的连接中断错误。"""
+    codes = {2006, 2013, 104}
+    try:
+        code = exc.args[0] if getattr(exc, "args", None) else None
+    except Exception:
+        code = None
+
+    if code in codes:
+        return True
+
+    msg = str(exc).lower()
+    needles = (
+        "server has gone away",
+        "lost connection to mysql server",
+        "connection reset by peer",
+        "not connected",
+        "connection closed",
+        "broken pipe",
+    )
+    return any(n in msg for n in needles)
+
+
 def reconnecting(func):
     """
     通用断线重连装饰器：
-    - 只针对 aiomysql.OperationalError
-    - 若错误码为 2006 / 2013 → 认为是断线，重建连接池 + 自动重试一次
-    - 第二次仍失败 / 其它错误 → 直接抛出
+    - 捕捉 aiomysql/底层网络连接中断
+    - 识别断线后重建连接池 + 自动重试一次
+    - 第二次仍失败 / 非断线错误 → 直接抛出
     """
     @wraps(func)
     async def wrapper(*args, **kwargs):
@@ -35,12 +58,12 @@ def reconnecting(func):
         for attempt in (1, 2):
             try:
                 return await func(*args, **kwargs)
-            except aiomysql.OperationalError as e:
-                code = e.args[0] if e.args else None
-                msg = e.args[1] if len(e.args) > 1 else ""
+            except Exception as e:
+                code = e.args[0] if getattr(e, "args", None) else None
+                msg = e.args[1] if len(getattr(e, "args", [])) > 1 else str(e)
 
-                if not cls or code not in (2006, 2013) or attempt == 2:
-                    print(f"❌ [MySQLPool] OperationalError {code}: {msg}", flush=True)
+                if not cls or (not _is_disconnect_error(e)) or attempt == 2:
+                    print(f"❌ [MySQLPool] DB error {code}: {msg}", flush=True)
                     raise
 
                 print(f"⚠️ [MySQLPool] 检测到断线 {code}: {msg} → 重建连接池并重试一次", flush=True)
@@ -161,7 +184,7 @@ class MySQLPool:
             # cfg 变化但 pool 已存在 → rebuild
             if cls._pool_usable() and cls._cfg and cls._cfg_fingerprint(cls._cfg) != cls._cfg_fingerprint(new_cfg):
                 cls.show_debug("🔁 [MySQLPool] cfg changed → rebuild pool")
-                await cls._rebuild_pool(new_cfg)
+                await cls._rebuild_pool_locked(new_cfg)
                 return cls._pool
 
             # pool 不可用/不存在 → init
@@ -195,25 +218,30 @@ class MySQLPool:
 
     # ===== 改造：_rebuild_pool 支持 cfg 注入 =====
     @classmethod
+    async def _rebuild_pool_locked(cls, cfg: dict | None = None):
+        """重建连接池；调用方必须已经持有 _lock。"""
+        cls._closing = True
+        if cls._pool:
+            try:
+                cls._pool.close()
+                await asyncio.wait_for(asyncio.shield(cls._pool.wait_closed()), timeout=20)
+            except Exception as e:
+                print(f"⚠️ [MySQLPool] 关闭旧连接池出错: {e}", flush=True)
+
+        cls._pool = None
+        cls._closing = False
+
+        if cfg is None:
+            cfg = cls._cfg or cls._merge_cfg(None)
+
+        cls._cfg = cfg
+        cls.show_debug("🔄 [MySQLPool] 正在重建 MySQL 连接池…")
+        await cls._init_pool_locked(cfg)
+
+    @classmethod
     async def _rebuild_pool(cls, cfg: dict | None = None):
         async with cls._lock:
-            cls._closing = True
-            if cls._pool:
-                try:
-                    cls._pool.close()
-                    await cls._pool.wait_closed()
-                except Exception as e:
-                    print(f"⚠️ [MySQLPool] 关闭旧连接池出错: {e}", flush=True)
-
-            cls._pool = None
-            cls._closing = False
-
-            if cfg is None:
-                cfg = cls._cfg or cls._merge_cfg(None)
-
-            cls._cfg = cfg
-            cls.show_debug("🔄 [MySQLPool] 正在重建 MySQL 连接池…")
-            await cls._init_pool_locked(cfg)
+            await cls._rebuild_pool_locked(cfg)
 
     @classmethod
     async def ensure_pool(cls):
@@ -248,7 +276,7 @@ class MySQLPool:
             cls.show_debug("【MySQLPool】连接 acquire 成功。")
         except Exception as e:
             msg = str(e).lower()
-            if "after closing pool" in msg or "closing pool" in msg:
+            if "after closing pool" in msg or "closing pool" in msg or _is_disconnect_error(e):
                 # 说明刚好撞上 close，重建并重试一次
                 await cls._rebuild_pool()
                 conn = await cls._pool.acquire()
@@ -321,10 +349,8 @@ class MySQLPool:
             return True
         except Exception as e:
             # ✅ 让断线错误上抛给 @reconnecting
-            if isinstance(e, aiomysql.OperationalError):
-                code = e.args[0] if e.args else None
-                if code in (2006, 2013):
-                    raise
+            if _is_disconnect_error(e):
+                raise
 
 
             if error_tag:
@@ -352,10 +378,8 @@ class MySQLPool:
             return await cur.fetchone()
         except Exception as e:
             # ✅ 让断线错误上抛给 @reconnecting
-            if isinstance(e, aiomysql.OperationalError):
-                code = e.args[0] if e.args else None
-                if code in (2006, 2013):
-                    raise
+            if _is_disconnect_error(e):
+                raise
 
 
             if error_tag:
@@ -380,10 +404,8 @@ class MySQLPool:
             return await cur.fetchall()
         except Exception as e:
             # ✅ 让断线错误上抛给 @reconnecting
-            if isinstance(e, aiomysql.OperationalError):
-                code = e.args[0] if e.args else None
-                if code in (2006, 2013):
-                    raise
+            if _is_disconnect_error(e):
+                raise
 
             if error_tag:
                 tag = error_tag
