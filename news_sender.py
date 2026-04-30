@@ -1,8 +1,6 @@
 # news_sender.py
 import asyncio
-import json
 from aiogram import Bot
-from aiogram.client.default import DefaultBotProperties
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramRetryAfter
 
@@ -36,7 +34,8 @@ def parse_button_str(button_str: str) -> InlineKeyboardMarkup | None:
 
 async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
     """发送单条任务，带速率限制与退避重试。"""
-    print(f"📤 发送任务: {task['task_id']} 给用户: {task['user_id']}", flush=True)
+    task_label = task.get("task_id", "preview")
+    print(f"📤 发送任务: {task_label} 给用户: {task['user_id']}", flush=True)
     # 速率限制：简单 sleep，避免触发 flood
     await asyncio.sleep(1 / max(rate_limit, 1))
 

@@ -470,7 +470,21 @@ async def receive_file_material(message: Message):
     existing_news = await db.get_news_id_by_thumb_file_unique_id(m_fuid)
 
     if (existing_news and existing_news.get("id")):
+        from news_sender import _send_one
+        subscribe_preview_chat_id = SharedConfig.get("subscribe_preview_chat_id")
+        #task['file_type'] = "photo"
+            # print(f"📤 任务 {task['task_id']} 的文件ID: {task['file_id']}", flush=True)
+            # retSend = await _send_one(bot, task, rate_limit=rate_limit, max_retries=max_retries)
         await db.create_send_tasks(int(existing_news['id']), existing_news['business_type'])
+        task = {
+            "file_id": m_fid,
+            "file_type": 'photo',
+            "button_str": existing_news['button_str'],
+            'user_id':subscribe_preview_chat_id, #这里不实际用到user_id，因为_send_one里是直接发给chat_id的
+            'text':existing_news['text'],
+        }
+        task = dict(task)
+        await _send_one(bot, task, rate_limit=3, max_retries=3)
 
 
 
