@@ -66,13 +66,26 @@ class HongbaoService:
                 transaction_description = skin.get("id") or 0
                 memo = skin.get("hb_key") or ""
 
+                sender_fee = -abs(amount)
+                receiver_fee = abs(amount)
+
                 await cur.execute(
                     """
                     INSERT INTO `transaction` (sender_id, sender_fee, receiver_id, receiver_fee, transaction_type, transaction_description, transaction_timestamp, memo)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """,
-                    (sender_id, amount, user_id, amount, 'hongbao', transaction_description, timestamp, memo),
+                    (sender_id, sender_fee, user_id, receiver_fee, 'hongbao', transaction_description, timestamp, memo),
                 ) 
+
+                await cur.execute(
+                    """
+                    INSERT INTO `user` (user_id, active, point, create_time, update_time)
+                    VALUES (%s, 1, %s, NOW(), NOW())
+                    ON DUPLICATE KEY UPDATE point = point + %s,update_time = NOW()
+                    """,
+                    (user_id, receiver_fee, receiver_fee),
+                )
+
             else:    
                 print(f"⚡ 常规红包，写入 contribute_today 表，user_id={user_id}, amount={amount}, stat_date={stat_date}")
                 await cur.execute(
