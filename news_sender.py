@@ -40,13 +40,16 @@ async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
     await asyncio.sleep(1 / max(rate_limit, 1))
 
     user_id = task["user_id"]
-    keyboard = parse_button_str(task["button_str"])
+    button_str = task.get("button_str")
+    keyboard = parse_button_str(button_str) if button_str else None
     send_kwargs = {
         "chat_id": user_id,
         "caption": task["text"],
-        "reply_markup": keyboard,
         "protect_content": True,
+        "parse_mode": "HTML",
     }
+    if keyboard is not None:
+        send_kwargs["reply_markup"] = keyboard
 
     last_err = None
     delay = 1
@@ -60,10 +63,14 @@ async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
                 else:
                     retSent = await bot.send_document(document=task["file_id"], **send_kwargs)
             else:
-                retSent = await bot.send_message(
-                    chat_id=user_id, text=task["text"],
-                    reply_markup=keyboard, protect_content=True
-                )
+                message_kwargs = {
+                    "chat_id": user_id,
+                    "text": task["text"],
+                    "protect_content": True,
+                }
+                if keyboard is not None:
+                    message_kwargs["reply_markup"] = keyboard
+                retSent = await bot.send_message(**message_kwargs)
             print(f"✅ 成功发送给用户 {user_id}", flush=True)
             return  # 成功
         except TelegramRetryAfter as e:

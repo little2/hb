@@ -476,12 +476,38 @@ async def receive_file_material(message: Message):
             # print(f"📤 任务 {task['task_id']} 的文件ID: {task['file_id']}", flush=True)
             # retSend = await _send_one(bot, task, rate_limit=rate_limit, max_retries=max_retries)
         await db.create_send_tasks(int(existing_news['id']), existing_news['business_type'])
+
+        original_text = str(existing_news['text'] or "")
+        button_str_value = str(existing_news['button_str'] or "").strip()
+        link_lines: list[str] = []
+        if button_str_value:
+            for line in button_str_value.split("\n"):
+                for part in line.split("&&"):
+                    part = part.strip()
+                    if " - " not in part:
+                        continue
+                    btn_text, btn_url = part.split(" - ", 1)
+                    btn_text = btn_text.strip()
+                    btn_url = btn_url.strip()
+                    if not btn_url:
+                        continue
+                    if btn_text:
+                        link_lines.append(f"<a href=\"{btn_url}\">{btn_text}</a>")
+                    else:
+                        link_lines.append(btn_url)
+
+        preview_text = original_text
+        if link_lines:
+            preview_text = (
+                f"{original_text}\n\n" + "\n".join(link_lines)
+            ).strip()
+
         task = {
             "file_id": m_fid,
             "file_type": 'photo',
-            "button_str": existing_news['button_str'],
+            "button_str": '',
             'user_id':subscribe_preview_chat_id, #这里不实际用到user_id，因为_send_one里是直接发给chat_id的
-            'text':existing_news['text'],
+            'text':preview_text,
         }
         task = dict(task)
         await _send_one(bot, task, rate_limit=3, max_retries=3)
