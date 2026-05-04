@@ -16,6 +16,7 @@ import lz_var
 import re
 
 import html
+import random
 from functools import lru_cache
 
 from config import (
@@ -30,12 +31,18 @@ from infra.redis_layer import RedisLayer, split_amounts
 from services.hongbao_service import HongbaoService
 from shared_config import SharedConfig
 SharedConfig.load()
+chat_cfg = SharedConfig.get("chat") or {}
+school = chat_cfg.get("school") or {}
+
+# 直接重新賦值，後續整個檔案用的 TARGET_CHAT_ID 都會是新值
+TARGET_CHAT_ID = int(school.get("chat_id") or TARGET_CHAT_ID)
+TARGET_MESSAGE_THREAD_ID = int(school.get("thread_id") or TARGET_MESSAGE_THREAD_ID)
+
 
 from material import RP_SKINS, I18N
 
 def _h(s: str) -> str:
     return html.escape(s or "", quote=False)
-import random
 
 def pick_rp_skin() -> dict:
     if not RP_SKINS:
@@ -128,12 +135,17 @@ async def on_photo(message: Message):
             await message.reply("❌ 红包封面保存失败，请稍后再试。", reply_markup=start_menu_back_keyboard())
         return
 
+    media = None
+    file_type = ""
     if message.photo:
         media = message.photo[-1]
         file_type = "photo"
     elif message.video:
         media = message.video
         file_type = "video"
+
+    if not media:
+        return
 
     await message.reply(
         "📸 已识别到图片（最大尺寸）\n"
@@ -941,7 +953,7 @@ async def cmd_hb(message: Message, ctx: AppCtx):
         message.from_user.id if message.from_user else 0
     )
     cover_file_id = (user_setting or {}).get("cover_file_id") or default_skin.get("file_id", "")
-    cover_type = (user_setting or {}).get("cover_type") or default_skin.get("file_id", "")
+    cover_type = (user_setting or {}).get("cover_type") or default_skin.get("file_type", "")
     bot_username = getattr(lz_var, "bot_username", "") or ""
 
     dm_text= f"""\
@@ -969,8 +981,8 @@ async def cmd_hb(message: Message, ctx: AppCtx):
     school_chat_thread_id = message.message_thread_id
 
     if message.chat.type not in ("group", "supergroup"):
-        school_chat_id = SharedConfig.get("school_chat_id", 0)
-        school_chat_thread_id = SharedConfig.get("school_chat_thread_id", 0)
+        school_chat_id = TARGET_CHAT_ID
+        school_chat_thread_id = TARGET_MESSAGE_THREAD_ID
     
 
 
@@ -1112,7 +1124,7 @@ async def _do_create_promote(id: int, ctx: AppCtx , msg: dict | None = None):
             }
     else:
         print(f"Creating promote for clt_id={id} by user_id={msg['sender_id'] if msg else 'N/A'}", flush=True)
-        clt_row = await HongbaoService.get_user_collection(id=id)
+        clt_row = await HongbaoService.get_user_collection(id=id) or {}
         push_cover_skin = lz_var.skins.get("push_cover", {})
         skin = {
                 "hb_key": f"clt{id}",
@@ -1471,6 +1483,10 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             name=claimer_raw,
             ts = datetime.now().timestamp(),
         )
+        try:
+            await callback.answer()
+        except TelegramBadRequest:
+            pass
 
     # skin_key = await ctx.r.get_hb_skin(hid)
 
@@ -1507,16 +1523,15 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             except Exception:
                 pass
 
-            if is_empty:
-                rows = await ctx.r.list_claim_meta(hid)  # [(uid, amt, ts, name), ...] ts 升序
-                items = []
-                # 计算耗时：按 base_msg.date 作为起点
-                try:
-                    dt0_ts = base_msg.date.timestamp()
-                except Exception:
-                    dt0_ts = datetime.now().timestamp()
+            rows = await ctx.r.list_claim_meta(hid)  # [(uid, amt, ts, name), ...] ts 升序
+            items = []
+            # 计算耗时：按 base_msg.date 作为起点
+            try:
+                dt0_ts = base_msg.date.timestamp()
+            except Exception:
+                dt0_ts = datetime.now().timestamp()
 
-                for _uid, amt, ts, name_raw in rows:
+            for _uid, amt, ts, name_raw in rows:
                     cost_sec = max(0.0, float(ts) - float(dt0_ts))
                     cost_txt = _fmt_cost(cost_sec)
                     name = "<code>" + _h(name_raw) + "</code>"
@@ -1587,6 +1602,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             new_reply_markup = base_msg.reply_markup
 
         # （可选）群消息编辑节流：只节流“展示更新”，不影响抢到/DM
+        do_edit = True
         if (not is_empty) and GROUP_NOTICE_THROTTLE:
             try:
                 ok_to_edit = await ctx.r.allow_group_notice(hid, GROUP_NOTICE_PER_SEC)
@@ -1594,14 +1610,9 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
                 ok_to_edit = True
             if not ok_to_edit:
                 new_reply_markup = base_msg.reply_markup  # 不变
-                # 直接跳过 edit（避免被刷爆）
-                goto_dm = True
-            else:
-                goto_dm = True
-        else:
-            goto_dm = True
+                do_edit = False  # 节流期间跳过 edit
 
-        if goto_dm:
+        if do_edit:
             try:
                 if base_msg.caption is not None:
                     await base_msg.edit_caption(
