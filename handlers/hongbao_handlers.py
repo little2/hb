@@ -1407,20 +1407,24 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         print(f"Claim failed: hid={hid} not found or expired")
         if base_msg:
             print(f"Base message: chat_id={base_msg.chat.id} message_id={base_msg.message_id}")
-            await ctx.bot.unpin_chat_message(
-                chat_id=base_msg.chat.id,
-                message_id=base_msg.message_id,
-            )
+            try:
+                await ctx.bot.unpin_chat_message(
+                    chat_id=base_msg.chat.id,
+                    message_id=base_msg.message_id,
+                )
+            except (TelegramBadRequest, TelegramForbiddenError, TelegramNotFound):
+                pass
 
-            hangbao_info = await HongbaoService.get_hongbao(hid)  # 仅为了日志记录，顺便验证是否真的过期（MySQL 层）
+            hangbao_info = await HongbaoService.get_hongbao(hid) or {}  # 仅为了日志记录，顺便验证是否真的过期（MySQL 层）
+            activity_link = _normalize_activity_link(hangbao_info.get("activity_link"))
 
 
-            if hangbao_info.get("activity_link"):
+            if activity_link:
                 new_reply_markup = InlineKeyboardMarkup(
                     inline_keyboard=[[
                         InlineKeyboardButton(
                             text=tr(lang, "btn_activity"),
-                            url=hangbao_info.get("activity_link"),
+                            url=activity_link,
                         )
                     ]]
                 )
@@ -1457,12 +1461,18 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
                         parse_mode="HTML",
                     )
             except TelegramBadRequest:
-                pass    
+                # 文本编辑失败时，至少确保活动按钮可更新
+                if new_reply_markup is not None:
+                    try:
+                        await base_msg.edit_reply_markup(reply_markup=new_reply_markup)
+                    except TelegramBadRequest:
+                        pass
         return
         
     # 抢完（手慢了）
     elif code == -1 or amount <= 0:
         await callback.answer(tr(lang, "too_late"), show_alert=False)
+        return
        
     else:
         # ======= 首次抢到：编辑群里原消息（不再发新消息）=======
@@ -1853,6 +1863,10 @@ def _parse_items(old_text: str, lang: str):
 
 def _fmt_cost(seconds: float) -> str:
     return ">5s" if seconds >= 5.0 else f"{seconds:.3f}s"
+
+
+def _normalize_activity_link(link: str | None) -> str:
+    return (link or "").strip()
 
 
 async def _resolve_sender_name(ctx: AppCtx, skin: dict, parsed_sender: str, lang: str) -> str:
