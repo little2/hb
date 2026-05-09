@@ -41,7 +41,7 @@ from utils.base62_converter import Base62Converter
 
 
 from shared_config import SharedConfig
-SharedConfig.load()
+SharedConfig.load(True)
 
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
