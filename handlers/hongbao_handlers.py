@@ -262,6 +262,65 @@ def _get_callback_hb_type(callback_data: str | None) -> str:
         return _normalize_hb_type(parts[1])
     return "lj"
 
+
+def _is_hongbao_expired(hongbao_info: dict | None) -> bool:
+    """
+    根据 DB 的 `expire_at` 判断红包是否已过期。
+    - True: 已过期
+    - False: 未过期（更可能是已抢完）
+    """
+    if not hongbao_info:
+        return False
+
+    expire_at = hongbao_info.get("expire_at")
+    if not expire_at:
+        return False
+
+    try:
+        if isinstance(expire_at, datetime):
+            now = datetime.now(expire_at.tzinfo) if expire_at.tzinfo else datetime.now()
+            return now >= expire_at
+
+        if isinstance(expire_at, str):
+            # MySQL DATETIME 常见格式："YYYY-mm-dd HH:MM:SS"
+            dt = datetime.fromisoformat(expire_at.replace(" ", "T"))
+            return datetime.now() >= dt
+    except Exception:
+        return False
+
+    return False
+
+
+async def _resolve_claim_terminal_state(ctx: AppCtx, hid: int) -> tuple[str, dict]:
+    """
+    返回 (state, hongbao_info)
+    state: missing | expired | finished | abnormal
+    """
+    hongbao_info = await HongbaoService.get_hongbao(hid) or {}
+    if not hongbao_info:
+        return "missing", {}
+
+    if _is_hongbao_expired(hongbao_info):
+        return "expired", hongbao_info
+
+    # 未过期：优先判断是否真的“已抢完”，避免 Redis key 异常丢失被误判
+    try:
+        rows = await ctx.r.list_claim_meta(hid)
+    except Exception:
+        rows = []
+
+    claimed_count = len(rows)
+    try:
+        total_count = int(hongbao_info.get("total_count") or 0)
+    except Exception:
+        total_count = 0
+
+    if total_count > 0 and claimed_count >= total_count:
+        return "finished", hongbao_info
+
+    # Redis 主 key 丢失但 DB 未过期，且名單未满：视为异常，提示重试
+    return "abnormal", hongbao_info
+
 def start_menu_keyboard() -> InlineKeyboardMarkup:
     guider_bot_name = getattr(lz_var, "guider_bot_name", "") or SharedConfig.get("guider_bot_name") or "unknown_bot"
     return InlineKeyboardMarkup(
@@ -1257,7 +1316,6 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict, hb_type: str 
             tr(lang, "post_total", total_amount=total_amount),
             tr(lang, "post_count", total_count=total_count),
             tr(lang, "post_sn", sn=hid),
-            tr(lang, "post_time", created_at=created_at),
             "",
             tr(lang, "post_stat_amount", claimed_amount=0, total_amount=total_amount),
             tr(lang, "post_stat_count", claimed_count=0, total_count=total_count),
@@ -1403,8 +1461,22 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
     # 不存在/过期
     if code == -2:
-        await callback.answer(tr(lang, "hb_not_found"), show_alert=False)
-        print(f"Claim failed: hid={hid} not found or expired")
+        state, hangbao_info = await _resolve_claim_terminal_state(ctx, hid)
+
+        if state == "finished":
+            await callback.answer(tr(lang, "too_late"), show_alert=False)
+        elif state == "expired":
+            await callback.answer(tr(lang, "hb_expired"), show_alert=False)
+        elif state == "abnormal":
+            await callback.answer(tr(lang, "hb_busy_retry"), show_alert=False)
+        else:
+            await callback.answer(tr(lang, "hb_not_found"), show_alert=False)
+
+        print(f"Claim failed: hid={hid} state={state}")
+        # 异常态不改群消息，避免误标记“已抢完/已过期”
+        if state == "abnormal":
+            return
+
         if base_msg:
             print(f"Base message: chat_id={base_msg.chat.id} message_id={base_msg.message_id}")
             try:
@@ -1415,7 +1487,6 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             except (TelegramBadRequest, TelegramForbiddenError, TelegramNotFound):
                 pass
 
-            hangbao_info = await HongbaoService.get_hongbao(hid) or {}  # 仅为了日志记录，顺便验证是否真的过期（MySQL 层）
             activity_link = _normalize_activity_link(hangbao_info.get("activity_link"))
 
 
@@ -1441,7 +1512,10 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
                     entities = base_msg.caption_entities or []
                     new_text = Text.from_entities(caption, entities).as_html()
 
-                    new_text += "\n\n" + tr(lang, "post_expired")
+                    if state == "finished":
+                        new_text += "\n\n" + tr(lang, "post_finished")
+                    elif state == "expired":
+                        new_text += "\n\n" + tr(lang, "post_expired")
 
                     await base_msg.edit_caption(
                         caption=new_text,
@@ -1453,7 +1527,10 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
                     entities = base_msg.entities or []
                     new_text = Text.from_entities(text, entities).as_html()
 
-                    new_text += "\n\n" + tr(lang, "post_expired")
+                    if state == "finished":
+                        new_text += "\n\n" + tr(lang, "post_finished")
+                    elif state == "expired":
+                        new_text += "\n\n" + tr(lang, "post_expired")
 
                     await base_msg.edit_text(
                         new_text,
@@ -1576,7 +1653,6 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             tr(lang, "post_total", total_amount=total_amount),
             tr(lang, "post_count", total_count=total_count),
             tr(lang, "post_sn", sn=hb_sn),
-            tr(lang, "post_time", created_at=created_at),
             "",
             tr(lang, "post_stat_amount", claimed_amount=claimed_amount, total_amount=total_amount),
             tr(lang, "post_stat_count", claimed_count=claimed_count, total_count=total_count),

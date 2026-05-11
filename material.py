@@ -124,6 +124,8 @@ I18N = {
         # ---- claim flow ----
         "cb_processing": "处理中…",
         "hb_not_found": "⛔ 龙嵬不存在或已消灭。",
+        "hb_expired": "⛔ 龙嵬已过期。",
+        "hb_busy_retry": "⚠️ 抢状激烈，再接再力。",
         "already_claimed": "你已榨过（重复点击将忽略）",
         "too_late": "🫥 手慢了，龙嵬已射完。",
         "dm_blocked": "⚠️ 我无法私信你，请先私聊我(发红包的机器人)发送 /start 开通私信，你才能获得龙精。",
@@ -185,6 +187,8 @@ I18N = {
         # ---- claim flow ----
         "cb_processing": "处理中…",
         "hb_not_found": "⛔ 红包不存在或已过期。",
+        "hb_expired": "⛔ 红包已过期。",
+        "hb_busy_retry": "⚠️ 抢状激烈，再接再力。。",
         "already_claimed": "你已抢过（重复点击已忽略）",
         "too_late": "🫥 手慢了，红包已抢完。",
         "dm_blocked": "⚠️ 我无法私信你，请先私聊我(发红包的机器人)发送 /start 开通私信，你才能获得红包。",
@@ -244,6 +248,8 @@ I18N = {
 
         "cb_processing": "Processing…",
         "hb_not_found": "⛔ Not found / expired (confiscated).",
+        "hb_expired": "⛔ Expired.",
+        "hb_busy_retry": "⚠️ Grab status is intense, keep trying...",
         "already_claimed": "Already grabbed (ignored).",
         "too_late": "🫥 Too late, all gone.",
         "dm_blocked": "⚠️ Can't DM you. Please /start me first.",
