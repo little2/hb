@@ -1,7 +1,10 @@
 import asyncio
 import contextlib
+from collections.abc import Callable
+import inspect
 import os
 import json
+import re
 import time
 from aiogram.exceptions import TelegramBadRequest
 from aiohttp import web
@@ -12,8 +15,6 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandObject
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
-from aiojobs.aiohttp import setup as setup_aiojobs
-from aiojobs.aiohttp import get_scheduler_from_app
 
 
 from aiogram.types import (
@@ -80,6 +81,79 @@ async def cancel_background_tasks() -> None:
     for task in tasks:
         with contextlib.suppress(asyncio.CancelledError):
             await task
+
+
+async def run_scheduled_functions(
+    task_name: str,
+    interval_seconds: float,
+    functions: list[Callable[[], object]],
+    align_to_interval: bool = True,
+    run_immediately: bool = False,
+) -> None:
+    is_first_run = True
+    while True:
+        if not (run_immediately and is_first_run):
+            sleep_seconds = interval_seconds
+            if align_to_interval:
+                remainder = time.time() % interval_seconds
+                sleep_seconds = interval_seconds - remainder if remainder else interval_seconds
+
+            await asyncio.sleep(sleep_seconds)
+
+        is_first_run = False
+
+        for function in functions:
+            function_name = getattr(function, "__name__", repr(function))
+            try:
+                result = function()
+                if inspect.isawaitable(result):
+                    await result
+                print(f"✅ {task_name}: {function_name} 执行完成", flush=True)
+            except Exception as e:
+                print(f"⚠️ {task_name}: {function_name} 执行失败: {e}", flush=True)
+
+
+async def schedule_hourly_maintenance() -> None:
+    await run_scheduled_functions(
+        task_name="每小时维护任务",
+        interval_seconds=3600,
+        functions=[lambda: SharedConfig.load(True)],
+        align_to_interval=True,
+    )
+
+
+async def ping_webhook_once() -> None:
+    url = f"{WEBHOOK_HOST}{WEBHOOK_PATH}" if BOT_MODE == "webhook" else f"{WEBHOOK_HOST}/"
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url) as resp:
+                print(f"🌐 Keep-alive ping {url} status {resp.status}", flush=True)
+        except Exception as e:
+            print(f"⚠️ Keep-alive ping failed: {e}", flush=True)
+
+
+async def keep_alive_ping() -> None:
+    await run_scheduled_functions(
+        task_name="保活请求",
+        interval_seconds=300,
+        functions=[ping_webhook_once],
+        align_to_interval=False,
+        run_immediately=True,
+    )
+
+
+def start_periodic_tasks(enable_keep_alive: bool = False) -> None:
+    task_factories: list[Callable[[], asyncio.Task]] = [
+        lambda: asyncio.create_task(sync_db()),
+        lambda: asyncio.create_task(periodic_sender(db)),
+        lambda: asyncio.create_task(schedule_hourly_maintenance()),
+    ]
+
+    if enable_keep_alive:
+        task_factories.append(lambda: asyncio.create_task(keep_alive_ping()))
+
+    for create_task in task_factories:
+        track_background_task(create_task())
 
 
 async def say_hello(text:str = 'Started news bot!'):
@@ -169,6 +243,25 @@ def parse_button_str(button_str: str) -> InlineKeyboardMarkup | None:
     按钮1 - http://t.me/... && 按钮2 - http://t.me/...
     按钮3 - http://t.me/...
     """
+    uploader_bot_name = SharedConfig.get('uploader_bot_name')
+    publish_bot_name = SharedConfig.get('publish_bot_name')
+
+    def replace_bot_name_by_text(text: str, url: str) -> str:
+        replacement_map = {
+            "👀 看看先": publish_bot_name,
+            "📤 我要上传": uploader_bot_name,
+        }
+        target_bot_name = replacement_map.get(text.strip())
+        if not target_bot_name:
+            return url.strip()
+
+        return re.sub(
+            r"(https://t\.me/)([^/?]+)(\?.*)$",
+            lambda match: f"{match.group(1)}{target_bot_name}{match.group(3)}",
+            url.strip(),
+            count=1,
+        )
+
     if not button_str:
         return None
     keyboard: list[list[InlineKeyboardButton]] = []
@@ -178,7 +271,9 @@ def parse_button_str(button_str: str) -> InlineKeyboardMarkup | None:
             part = part.strip()
             if " - " in part:
                 text, url = part.split(" - ", 1)
-                row.append(InlineKeyboardButton(text=text.strip(), url=url.strip()))
+                text = text.strip()
+                url = replace_bot_name_by_text(text, url)
+                row.append(InlineKeyboardButton(text=text, url=url))
         if row:
             keyboard.append(row)
     return InlineKeyboardMarkup(inline_keyboard=keyboard) if keyboard else None
@@ -620,18 +715,6 @@ async def on_shutdown(app):
     await close_resources()
 
 
-async def keep_alive_ping():
-    url = f"{WEBHOOK_HOST}{WEBHOOK_PATH}" if BOT_MODE == "webhook" else f"{WEBHOOK_HOST}/"
-    async with aiohttp.ClientSession() as session:
-        while True:
-            try:
-                async with session.get(url) as resp:
-                    print(f"🌐 Keep-alive ping {url} status {resp.status}", flush=True)
-            except Exception as e:
-                print(f"⚠️ Keep-alive ping failed: {e}", flush=True)
-            await asyncio.sleep(300)
-
-
 async def main():
     try:
         await db.init()
@@ -651,17 +734,13 @@ async def main():
             app = web.Application()
             app.router.add_get("/", health)
 
-            setup_aiojobs(app)
-
             SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=WEBHOOK_PATH)
             setup_application(app, dp, bot=bot)
 
             async def on_app_start(app):
                 await db.init()
-                await get_scheduler_from_app(app).spawn(sync_db())
-                await get_scheduler_from_app(app).spawn(periodic_sender(db))
+                start_periodic_tasks(enable_keep_alive=True)
 
-            track_background_task(asyncio.create_task(keep_alive_ping()))
             app.on_startup.append(on_app_start)
             app.on_shutdown.append(on_shutdown)
 
@@ -669,8 +748,7 @@ async def main():
             await web._run_app(app, host="0.0.0.0", port=port)
         else:
             await bot.delete_webhook(drop_pending_updates=True)
-            track_background_task(asyncio.create_task(sync_db()))
-            track_background_task(asyncio.create_task(periodic_sender(db)))
+            start_periodic_tasks(enable_keep_alive=False)
             await dp.start_polling(
                 bot,
                 skip_updates=True,
