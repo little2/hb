@@ -321,69 +321,6 @@ async def _resolve_claim_terminal_state(ctx: AppCtx, hid: int) -> tuple[str, dic
     # Redis 主 key 丢失但 DB 未过期，且名單未满：视为异常，提示重试
     return "abnormal", hongbao_info
 
-
-async def _build_finished_hongbao_text(
-    ctx: AppCtx,
-    base_msg: Message,
-    hid: int,
-    lang: str,
-    skin: dict,
-) -> str:
-    """
-    从 Redis 的 claim meta 全量重建“已抢完”文案，确保最终名单完整可见。
-    """
-    old_text = (base_msg.caption or base_msg.text or "")
-    parsed_sender, total_amount, total_count, hb_sn, _created_at = _parse_base(old_text, lang)
-    sender = await _resolve_sender_name(ctx, skin, parsed_sender, lang)
-
-    rows = await ctx.r.list_claim_meta(hid)  # [(uid, amt, ts, name), ...]
-
-    try:
-        dt0_ts = base_msg.date.timestamp()
-    except Exception:
-        dt0_ts = datetime.now().timestamp()
-
-    items: list[tuple[str, int, str]] = []
-    for _uid, amt, ts, name_raw in rows:
-        cost_sec = max(0.0, float(ts) - float(dt0_ts))
-        cost_txt = _fmt_cost(cost_sec)
-        name = "<code>" + _h(name_raw) + "</code>"
-        items.append((name, int(amt), cost_txt))
-
-    claimed_amount = sum(a for _, a, _ in items)
-    claimed_count = len(items)
-    king_name, king_amt, _ = max(items, key=lambda x: x[1]) if items else ("", 0, "")
-
-    sender = _h(sender)
-
-    lines = [
-        "<blockquote>" + tr(lang, "post_title", sender=sender) + "</blockquote>",
-    ]
-
-    intro_text = skin.get("intro_text") or ""
-    if intro_text:
-        lines += ["", f"<i>💬 {_h(intro_text)}</i>", ""]
-
-    lines += [
-        tr(lang, "post_total", total_amount=total_amount),
-        tr(lang, "post_count", total_count=total_count),
-        tr(lang, "post_sn", sn=hb_sn),
-        "",
-        tr(lang, "post_stat_amount", claimed_amount=claimed_amount, total_amount=total_amount),
-        tr(lang, "post_stat_count", claimed_count=claimed_count, total_count=total_count),
-        "",
-        "<blockquote>" + tr(lang, "post_list_title") + "</blockquote>",
-        "",
-        tr(lang, "post_king", name=king_name, amt=king_amt),
-        "",
-    ]
-
-    for name, amt, cost in items:
-        lines.append(tr(lang, "post_item", name=name, amt=amt, cost=cost))
-
-    lines += ["", tr(lang, "post_finished")]
-    return "\n".join(lines)
-
 def start_menu_keyboard() -> InlineKeyboardMarkup:
     guider_bot_name = getattr(lz_var, "guider_bot_name", "") or SharedConfig.get("guider_bot_name") or "unknown_bot"
     return InlineKeyboardMarkup(
@@ -1567,20 +1504,16 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
 
             try:
+                
+
                 if base_msg.caption is not None:
                     caption = base_msg.caption or ""
+                    
                     entities = base_msg.caption_entities or []
                     new_text = Text.from_entities(caption, entities).as_html()
 
                     if state == "finished":
-                        rebuilt_text = await _build_finished_hongbao_text(
-                            ctx=ctx,
-                            base_msg=base_msg,
-                            hid=hid,
-                            lang=lang,
-                            skin=hangbao_info or {},
-                        )
-                        new_text = rebuilt_text or (new_text + "\n\n" + tr(lang, "post_finished"))
+                        new_text += "\n\n" + tr(lang, "post_finished")
                     elif state == "expired":
                         new_text += "\n\n" + tr(lang, "post_expired")
 
@@ -1595,14 +1528,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
                     new_text = Text.from_entities(text, entities).as_html()
 
                     if state == "finished":
-                        rebuilt_text = await _build_finished_hongbao_text(
-                            ctx=ctx,
-                            base_msg=base_msg,
-                            hid=hid,
-                            lang=lang,
-                            skin=hangbao_info or {},
-                        )
-                        new_text = rebuilt_text or (new_text + "\n\n" + tr(lang, "post_finished"))
+                        new_text += "\n\n" + tr(lang, "post_finished")
                     elif state == "expired":
                         new_text += "\n\n" + tr(lang, "post_expired")
 
