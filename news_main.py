@@ -586,6 +586,7 @@ async def receive_file_material(message: Message):
                     btn_url = btn_url.strip()
                     if not btn_url:
                         continue
+
                     if btn_text:
                         link_lines.append(f"<a href=\"{btn_url}\">{btn_text}</a>")
                     else:
@@ -594,7 +595,7 @@ async def receive_file_material(message: Message):
         preview_text = original_text
         if link_lines:
             preview_text = (
-                f"{original_text}\n\n" + "\n".join(link_lines)
+                f"{original_text}\n\n" + "    |    ".join(link_lines)
             ).strip()
 
         task = {
