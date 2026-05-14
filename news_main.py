@@ -237,31 +237,28 @@ pending_fuid_requests: dict[str, dict] = {}
 
 
 
+def replace_bot_name_by_text(text: str, url: str) -> str:
+    replacement_map = {
+        "👀 看看先": SharedConfig.get('publish_bot_name'),
+        "📤 我要上传": SharedConfig.get('uploader_bot_name'),
+    }
+    target_bot_name = replacement_map.get(text.strip())
+    if not target_bot_name:
+        return url.strip()
+
+    return re.sub(
+        r"(https://t\.me/)([^/?]+)(\?.*)$",
+        lambda match: f"{match.group(1)}{target_bot_name}{match.group(3)}",
+        url.strip(),
+        count=1,
+    )
+
 def parse_button_str(button_str: str) -> InlineKeyboardMarkup | None:
     """
     解析格式：
     按钮1 - http://t.me/... && 按钮2 - http://t.me/...
     按钮3 - http://t.me/...
     """
-    uploader_bot_name = SharedConfig.get('uploader_bot_name')
-    publish_bot_name = SharedConfig.get('publish_bot_name')
-
-    def replace_bot_name_by_text(text: str, url: str) -> str:
-        replacement_map = {
-            "👀 看看先": publish_bot_name,
-            "📤 我要上传": uploader_bot_name,
-        }
-        target_bot_name = replacement_map.get(text.strip())
-        if not target_bot_name:
-            return url.strip()
-
-        return re.sub(
-            r"(https://t\.me/)([^/?]+)(\?.*)$",
-            lambda match: f"{match.group(1)}{target_bot_name}{match.group(3)}",
-            url.strip(),
-            count=1,
-        )
-
     if not button_str:
         return None
     keyboard: list[list[InlineKeyboardButton]] = []
@@ -587,7 +584,9 @@ async def receive_file_material(message: Message):
                     if not btn_url:
                         continue
 
+
                     if btn_text:
+                        btn_url = replace_bot_name_by_text(btn_text, btn_url)
                         link_lines.append(f"<a href=\"{btn_url}\">{btn_text}</a>")
                     else:
                         link_lines.append(btn_url)
