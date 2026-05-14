@@ -239,7 +239,7 @@ pending_fuid_requests: dict[str, dict] = {}
 
 def replace_bot_name_by_text(text: str, url: str) -> str:
     replacement_map = {
-        "👀 看看先": SharedConfig.get('publish_bot_name'),
+        "👀 看看先": SharedConfig.get('publishbk_bot_name'),
         "📤 我要上传": SharedConfig.get('uploader_bot_name'),
     }
     target_bot_name = replacement_map.get(text.strip())
