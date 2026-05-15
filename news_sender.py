@@ -1,7 +1,7 @@
 # news_sender.py
 import asyncio
 from aiogram import Bot
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CopyTextButton
 from aiogram.exceptions import TelegramRetryAfter
 
 from news_db import NewsDatabase
@@ -30,12 +30,10 @@ def parse_button_str(button_str: str, juhuacode: str = None) -> InlineKeyboardMa
                 keyboard.append(row)
     # 新增複製按鈕
     if juhuacode:
-        # 這裡用 dict 方式構造，方便自定義屬性
         keyboard.append([
             InlineKeyboardButton(
                 text="🌼",
-                # 直接設置 copy_text 屬性（非標準 aiogram 實例，實際發送時會自動序列化為 dict）
-                **{"copy_text": {"text": [juhuacode]}}
+                copy_text=CopyTextButton(text=juhuacode)
             )
         ])
     return InlineKeyboardMarkup(inline_keyboard=keyboard) if keyboard else None
@@ -63,27 +61,35 @@ async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
 
     last_err = None
     delay = 1
+    sent_message_id: int | None = None
     for attempt in range(max_retries + 1):
         try:
             # 新增: 若有 comment，先發送純 caption，後編輯加按鈕
             if comment:
-                # 1. 先發送純 caption
-                msg = await bot.send_photo(photo=task["file_id"], chat_id=user_id, caption=task["text"], parse_mode="HTML", protect_content=True)
-                message_id = msg.message_id
+                # 1. 仅在尚未发送成功时发送一次
+                if sent_message_id is None:
+                    msg = await bot.send_photo(
+                        photo=task["file_id"],
+                        chat_id=user_id,
+                        caption=task["text"],
+                        parse_mode="HTML",
+                        protect_content=True,
+                    )
+                    sent_message_id = msg.message_id
                 # 2. 構造按鈕
                 reply_markup = keyboard.to_python() if keyboard else {"inline_keyboard": []}
                 # 3. 新增評論按鈕
                 channel_id = str(user_id)
                 if channel_id.startswith("-100"):
                     channel_id = channel_id[4:]
-                comment_url = f"https://t.me/{channel_id}/{message_id}?comment=1"
+                comment_url = f"https://t.me/{channel_id}/{sent_message_id}?comment=1"
                 reply_markup["inline_keyboard"].append([
                     {"text": "💬 评论", "url": comment_url}
                 ])
                 # 4. 編輯訊息加上 reply_markup
                 await bot.edit_message_caption(
                     chat_id=user_id,
-                    message_id=message_id,
+                    message_id=sent_message_id,
                     caption=task["text"],
                     parse_mode="HTML",
                     reply_markup=reply_markup

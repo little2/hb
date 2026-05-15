@@ -563,7 +563,16 @@ async def receive_file_material(message: Message):
 
     if (existing_news and existing_news.get("id")):
         from news_sender import _send_one
-        subscribe_preview_chat_id = SharedConfig.get("subscribe_preview_chat_id")
+        subscribe_preview_chat_id_raw = SharedConfig.get("subscribe_preview_chat_id")
+        subscribe_preview_chat_id: int | None = None
+        try:
+            subscribe_preview_chat_id = int(str(subscribe_preview_chat_id_raw).strip())
+        except (TypeError, ValueError):
+            print(
+                "⚠️ subscribe_preview_chat_id 配置无效，跳过预览发送: "
+                f"{subscribe_preview_chat_id_raw}",
+                flush=True,
+            )
         #task['file_type'] = "photo"
             # print(f"📤 任务 {task['task_id']} 的文件ID: {task['file_id']}", flush=True)
             # retSend = await _send_one(bot, task, rate_limit=rate_limit, max_retries=max_retries)
@@ -604,17 +613,30 @@ async def receive_file_material(message: Message):
         juhuacode = code_match.group(1).strip() if code_match else None
 
 
-        task = {
-            "file_id": m_fid,
-            "file_type": 'photo',
-            "button_str": button_str_value,
-            "comment":'yes',
-            "juhuacode": juhuacode,
-            'user_id':subscribe_preview_chat_id, #这里不实际用到user_id，因为_send_one里是直接发给chat_id的
-            'text':preview_text,
-        }
-        task = dict(task)
-        await _send_one(bot, task, rate_limit=3, max_retries=3)
+        if subscribe_preview_chat_id is not None:
+            task = {
+                "file_id": m_fid,
+                "file_type": 'photo',
+                "button_str": button_str_value,
+                "comment":'yes',
+                "juhuacode": juhuacode,
+                'user_id':subscribe_preview_chat_id, #这里不实际用到user_id，因为_send_one里是直接发给chat_id的
+                'text':preview_text,
+            }
+            task = dict(task)
+            print(f"📤 创建补档任务，新闻 ID={existing_news['id']}，Task：{task}", flush=True)
+            try:
+                await _send_one(bot, task, rate_limit=3, max_retries=3)
+            except Exception as e:
+                print(
+                    f"⚠️ 预览发送失败，已隔离不影响补档主流程: news_id={existing_news['id']}, error={e}",
+                    flush=True,
+                )
+        else:
+            print(
+                f"⚠️ subscribe_preview_chat_id 未配置，跳过预览发送: {subscribe_preview_chat_id_raw}",
+                flush=True,
+            )
 
 
 
