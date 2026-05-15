@@ -608,6 +608,9 @@ async def receive_file_material(message: Message):
             preview_text = (
                 f"{original_text}\n\n" + "    |    ".join(link_lines)
             ).strip()
+            # 再加一行断行
+            preview_text += "\n."
+            
 
         code_match = re.search(r"<code>(.*?)</code>", original_text, flags=re.DOTALL)
         juhuacode = code_match.group(1).strip() if code_match else None

@@ -77,15 +77,16 @@ async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
                     )
                     sent_message_id = msg.message_id
                 # 2. 構造按鈕
-                reply_markup = keyboard.to_python() if keyboard else {"inline_keyboard": []}
+                inline_keyboard = [list(row) for row in keyboard.inline_keyboard] if keyboard else []
                 # 3. 新增評論按鈕
                 channel_id = str(user_id)
                 if channel_id.startswith("-100"):
                     channel_id = channel_id[4:]
                 comment_url = f"https://t.me/{channel_id}/{sent_message_id}?comment=1"
-                reply_markup["inline_keyboard"].append([
-                    {"text": "💬 评论", "url": comment_url}
+                inline_keyboard.append([
+                    InlineKeyboardButton(text="💬 评论", url=comment_url)
                 ])
+                reply_markup = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
                 # 4. 編輯訊息加上 reply_markup
                 await bot.edit_message_caption(
                     chat_id=user_id,
