@@ -569,10 +569,13 @@ async def receive_file_material(message: Message):
             # retSend = await _send_one(bot, task, rate_limit=rate_limit, max_retries=max_retries)
         await db.create_send_tasks(int(existing_news['id']), existing_news['business_type'])
 
+
+
         original_text = str(existing_news['text'] or "")
         button_str_value = str(existing_news['button_str'] or "").strip()
         link_lines: list[str] = []
         if button_str_value:
+            
             for line in button_str_value.split("\n"):
                 for part in line.split("&&"):
                     part = part.strip()
@@ -597,10 +600,16 @@ async def receive_file_material(message: Message):
                 f"{original_text}\n\n" + "    |    ".join(link_lines)
             ).strip()
 
+        code_match = re.search(r"<code>(.*?)</code>", original_text, flags=re.DOTALL)
+        juhuacode = code_match.group(1).strip() if code_match else None
+
+
         task = {
             "file_id": m_fid,
             "file_type": 'photo',
-            "button_str": '',
+            "button_str": button_str_value,
+            "comment":'yes',
+            "juhuacode": juhuacode,
             'user_id':subscribe_preview_chat_id, #这里不实际用到user_id，因为_send_one里是直接发给chat_id的
             'text':preview_text,
         }

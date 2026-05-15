@@ -10,25 +10,34 @@ RATE_LIMIT_DEFAULT = 20
 MAX_RETRIES_DEFAULT = 3
 
 
-def parse_button_str(button_str: str) -> InlineKeyboardMarkup | None:
+def parse_button_str(button_str: str, juhuacode: str = None) -> InlineKeyboardMarkup | None:
     """
-    独立实现，避免从 news_main 导入造成循环依赖。
-    格式：
-      按钮1 - http://t.me/... && 按钮2 - http://t.me/...
-      按钮3 - http://t.me/...
+    button_str: 按鈕描述字串
+    juhuacode: 若有則額外加一個複製按鈕
     """
-    if not button_str:
+    if not button_str and not juhuacode:
         return None
     keyboard: list[list[InlineKeyboardButton]] = []
-    for line in button_str.strip().split("\n"):
-        row: list[InlineKeyboardButton] = []
-        for part in line.split("&&"):
-            part = part.strip()
-            if " - " in part:
-                text, url = part.split(" - ", 1)
-                row.append(InlineKeyboardButton(text=text.strip(), url=url.strip()))
-        if row:
-            keyboard.append(row)
+    if button_str:
+        for line in button_str.strip().split("\n"):
+            row: list[InlineKeyboardButton] = []
+            for part in line.split("&&"):
+                part = part.strip()
+                if " - " in part:
+                    text, url = part.split(" - ", 1)
+                    row.append(InlineKeyboardButton(text=text.strip(), url=url.strip()))
+            if row:
+                keyboard.append(row)
+    # 新增複製按鈕
+    if juhuacode:
+        # 這裡用 dict 方式構造，方便自定義屬性
+        keyboard.append([
+            InlineKeyboardButton(
+                text="🌼",
+                # 直接設置 copy_text 屬性（非標準 aiogram 實例，實際發送時會自動序列化為 dict）
+                **{"copy_text": {"text": [juhuacode]}}
+            )
+        ])
     return InlineKeyboardMarkup(inline_keyboard=keyboard) if keyboard else None
 
 
@@ -36,18 +45,19 @@ async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
     """发送单条任务，带速率限制与退避重试。"""
     task_label = task.get("task_id", "preview")
     print(f"📤 发送任务: {task_label} 给用户: {task['user_id']}", flush=True)
-    # 速率限制：简单 sleep，避免触发 flood
     await asyncio.sleep(1 / max(rate_limit, 1))
 
     user_id = task["user_id"]
     button_str = task.get("button_str")
-    keyboard = parse_button_str(button_str) if button_str else None
+    juhuacode = task.get("juhuacode")
+    comment = task.get("comment")
     send_kwargs = {
         "chat_id": user_id,
         "caption": task["text"],
         "protect_content": True,
         "parse_mode": "HTML",
     }
+    keyboard = parse_button_str(button_str, juhuacode) if (button_str or juhuacode) else None
     if keyboard is not None:
         send_kwargs["reply_markup"] = keyboard
 
@@ -55,6 +65,32 @@ async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
     delay = 1
     for attempt in range(max_retries + 1):
         try:
+            # 新增: 若有 comment，先發送純 caption，後編輯加按鈕
+            if comment:
+                # 1. 先發送純 caption
+                msg = await bot.send_photo(photo=task["file_id"], chat_id=user_id, caption=task["text"], parse_mode="HTML", protect_content=True)
+                message_id = msg.message_id
+                # 2. 構造按鈕
+                reply_markup = keyboard.to_python() if keyboard else {"inline_keyboard": []}
+                # 3. 新增評論按鈕
+                channel_id = str(user_id)
+                if channel_id.startswith("-100"):
+                    channel_id = channel_id[4:]
+                comment_url = f"https://t.me/{channel_id}/{message_id}?comment=1"
+                reply_markup["inline_keyboard"].append([
+                    {"text": "💬 评论", "url": comment_url}
+                ])
+                # 4. 編輯訊息加上 reply_markup
+                await bot.edit_message_caption(
+                    chat_id=user_id,
+                    message_id=message_id,
+                    caption=task["text"],
+                    parse_mode="HTML",
+                    reply_markup=reply_markup
+                )
+                print(f"✅ 成功发送并加评论按钮给用户 {user_id}", flush=True)
+                return
+            # 原有邏輯
             if task["file_id"]:
                 if task["file_type"] == "photo" or task["file_type"] == "p":
                     retSent = await bot.send_photo(photo=task["file_id"], **send_kwargs)
@@ -74,7 +110,6 @@ async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
             print(f"✅ 成功发送给用户 {user_id}", flush=True)
             return  # 成功
         except TelegramRetryAfter as e:
-            # Telegram 提示退避秒数
             print(f"⏳ Telegram 速率限制，等待 {e.retry_after} 秒后重试...", flush=True)
             await asyncio.sleep(e.retry_after + 0.1)
             last_err = e
@@ -86,7 +121,6 @@ async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
             else:
                 break
             print(f"⚠️ 发送失败，尝试重试 {attempt + 1}/{max_retries}...{last_err}", flush=True)
-    # 重试耗尽仍失败
     raise last_err
 
 
