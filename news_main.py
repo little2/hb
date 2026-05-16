@@ -617,8 +617,8 @@ async def receive_file_material(message: Message):
             preview_text += "\n."
             
 
-        code_match = re.search(r"<code>(.*?)</code>", original_text, flags=re.DOTALL)
-        juhuacode = code_match.group(1).strip() if code_match else None
+        # code_match = re.search(r"<code>(.*?)</code>", original_text, flags=re.DOTALL)
+        # juhuacode = code_match.group(1).strip() if code_match else None
 
 
         if subscribe_preview_chat_id is not None:
@@ -626,8 +626,8 @@ async def receive_file_material(message: Message):
                 "file_id": m_fid,
                 "file_type": 'photo',
                 "button_str": '',
-                "comment":'yes',
-                "juhuacode": juhuacode,
+                # "comment":'yes',
+                # "juhuacode": juhuacode,
                 'user_id':subscribe_preview_chat_id, #这里不实际用到user_id，因为_send_one里是直接发给chat_id的
                 'text':preview_text,
             }
