@@ -306,7 +306,7 @@ class NewsDatabase:
         async with self.pool.acquire() as conn:
             return await conn.fetchrow(
                 """
-                SELECT id,business_type,button_str,text 
+                SELECT id,business_type,button_str,text,content_id 
                 FROM news_content
                 WHERE thumb_file_unique_id = $1 
                 LIMIT 1

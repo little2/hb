@@ -65,40 +65,40 @@ async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
     for attempt in range(max_retries + 1):
         try:
             # 新增: 若有 comment，先發送純 caption，後編輯加按鈕
-            if comment:
-                # 1. 仅在尚未发送成功时发送一次
-                if sent_message_id is None:
-                    msg = await bot.send_photo(
-                        photo=task["file_id"],
-                        chat_id=user_id,
-                        caption=task["text"],
-                        parse_mode="HTML",
-                        protect_content=True,
-                    )
-                    sent_message_id = msg.message_id
-                    #暂停1秒等待消息稳定
-                    await asyncio.sleep(3)
-                # 2. 構造按鈕
-                inline_keyboard = [list(row) for row in keyboard.inline_keyboard] if keyboard else []
-                # 3. 新增評論按鈕
-                channel_id = str(user_id)
-                if channel_id.startswith("-100"):
-                    channel_id = channel_id[4:]
-                comment_url = f"https://t.me/c/{channel_id}/{sent_message_id}?comment=1"
-                inline_keyboard.append([
-                    InlineKeyboardButton(text="💬 评论", url=comment_url)
-                ])
-                reply_markup = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
-                # 4. 編輯訊息加上 reply_markup
-                await bot.edit_message_caption(
-                    chat_id=user_id,
-                    message_id=sent_message_id,
-                    caption=task["text"],
-                    parse_mode="HTML",
-                    reply_markup=reply_markup
-                )
-                print(f"✅ 成功发送并加评论按钮给用户 {user_id}", flush=True)
-                return
+            # if comment:
+            #     # 1. 仅在尚未发送成功时发送一次
+            #     if sent_message_id is None:
+            #         msg = await bot.send_photo(
+            #             photo=task["file_id"],
+            #             chat_id=user_id,
+            #             caption=task["text"],
+            #             parse_mode="HTML",
+            #             protect_content=True,
+            #         )
+            #         sent_message_id = msg.message_id
+            #         #暂停1秒等待消息稳定
+            #         await asyncio.sleep(3)
+            #     # 2. 構造按鈕
+            #     inline_keyboard = [list(row) for row in keyboard.inline_keyboard] if keyboard else []
+            #     # 3. 新增評論按鈕
+            #     channel_id = str(user_id)
+            #     if channel_id.startswith("-100"):
+            #         channel_id = channel_id[4:]
+            #     comment_url = f"https://t.me/c/{channel_id}/{sent_message_id}?comment=1"
+            #     inline_keyboard.append([
+            #         InlineKeyboardButton(text="💬 评论", url=comment_url)
+            #     ])
+            #     reply_markup = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+            #     # 4. 編輯訊息加上 reply_markup
+            #     await bot.edit_message_caption(
+            #         chat_id=user_id,
+            #         message_id=sent_message_id,
+            #         caption=task["text"],
+            #         parse_mode="HTML",
+            #         reply_markup=reply_markup
+            #     )
+            #     print(f"✅ 成功发送并加评论按钮给用户 {user_id}", flush=True)
+            #     return
             # 原有邏輯
             if task["file_id"]:
                 if task["file_type"] == "photo" or task["file_type"] == "p":

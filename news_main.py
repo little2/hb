@@ -15,7 +15,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandObject
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
-
+import secrets
 
 from aiogram.types import (
     Message,
@@ -563,6 +563,7 @@ async def receive_file_material(message: Message):
 
     if (existing_news and existing_news.get("id")):
         from news_sender import _send_one
+        content_id = existing_news.get("content_id") or 0
         subscribe_preview_chat_id_raw = SharedConfig.get("subscribe_preview_chat_id")
         subscribe_preview_chat_id: int | None = None
         try:
@@ -603,6 +604,10 @@ async def receive_file_material(message: Message):
                     else:
                         link_lines.append(btn_url)
 
+            if content_id > 0:
+                content_id_str = content_id_encode(content_id)
+                link_lines.append(f"No.<code>{content_id_str}</code>")
+           
         preview_text = original_text
         if link_lines:
             preview_text = (
@@ -620,7 +625,7 @@ async def receive_file_material(message: Message):
             task = {
                 "file_id": m_fid,
                 "file_type": 'photo',
-                "button_str": button_str_value,
+                "button_str": '',
                 "comment":'yes',
                 "juhuacode": juhuacode,
                 'user_id':subscribe_preview_chat_id, #这里不实际用到user_id，因为_send_one里是直接发给chat_id的
@@ -641,6 +646,16 @@ async def receive_file_material(message: Message):
                 flush=True,
             )
 
+def content_id_encode(a: int) -> str:
+    r = secrets.randbelow(2**31)
+    b = a ^ r
+    c = r
+    return f"{b}.{c}"
+
+
+def content_id_decode(token: str) -> int:
+    b_str, c_str = token.split(".", 1)
+    return int(b_str) ^ int(c_str)
 
 
 # === 执行正常新闻批次推送 ===
