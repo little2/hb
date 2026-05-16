@@ -646,16 +646,18 @@ async def receive_file_material(message: Message):
                 flush=True,
             )
 
-def content_id_encode(a: int) -> str:
-    r = secrets.randbelow(2**31)
+
+def content_id_encode(a: int) -> int:
+    R_MAX = 100  # 两位随机数
+    r = secrets.randbelow(R_MAX)
     b = a ^ r
-    c = r
-    return f"{b}.{c}"
+    return r * 100000000 + b
 
 
-def content_id_decode(token: str) -> int:
-    b_str, c_str = token.split(".", 1)
-    return int(b_str) ^ int(c_str)
+def content_id_decode(token: int) -> int:
+    r = token // 100000000
+    b = token % 100000000
+    return b ^ r
 
 
 # === 执行正常新闻批次推送 ===
