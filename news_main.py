@@ -583,53 +583,53 @@ async def receive_file_material(message: Message):
 
         original_text = str(existing_news['text'] or "")
         button_str_value = str(existing_news['button_str'] or "").strip()
-        link_lines: list[str] = []
-        if button_str_value:
+        # link_lines: list[str] = []
+        # if button_str_value:
             
-            for line in button_str_value.split("\n"):
-                for part in line.split("&&"):
-                    part = part.strip()
-                    if " - " not in part:
-                        continue
-                    btn_text, btn_url = part.split(" - ", 1)
-                    btn_text = btn_text.strip()
-                    btn_url = btn_url.strip()
-                    if not btn_url:
-                        continue
+        #     for line in button_str_value.split("\n"):
+        #         for part in line.split("&&"):
+        #             part = part.strip()
+        #             if " - " not in part:
+        #                 continue
+        #             btn_text, btn_url = part.split(" - ", 1)
+        #             btn_text = btn_text.strip()
+        #             btn_url = btn_url.strip()
+        #             if not btn_url:
+        #                 continue
 
 
-                    if btn_text:
-                        btn_url = replace_bot_name_by_text(btn_text, btn_url)
-                        link_lines.append(f"<a href=\"{btn_url}\">{btn_text}</a>")
-                    else:
-                        link_lines.append(btn_url)
+        #             if btn_text:
+        #                 btn_url = replace_bot_name_by_text(btn_text, btn_url)
+        #                 link_lines.append(f"<a href=\"{btn_url}\">{btn_text}</a>")
+        #             else:
+        #                 link_lines.append(btn_url)
 
-            if content_id > 0:
-                content_id_str = content_id_encode(content_id)
-                link_lines.append(f"No.<code>{content_id_str}</code>")
+        #     if content_id > 0:
+        #         content_id_str = content_id_encode(content_id)
+        #         link_lines.append(f"No.<code>{content_id_str}</code>")
            
-        preview_text = original_text
-        if link_lines:
-            preview_text = (
-                f"{original_text}\n\n" + "    |    ".join(link_lines)
-            ).strip()
-            # 再加一行断行
-            preview_text += "\n."
+        # preview_text = original_text
+        # if link_lines:
+        #     preview_text = (
+        #         f"{original_text}\n\n" + "    |    ".join(link_lines)
+        #     ).strip()
+        #     # 再加一行断行
+        #     preview_text += "\n."
             
 
-        # code_match = re.search(r"<code>(.*?)</code>", original_text, flags=re.DOTALL)
-        # juhuacode = code_match.group(1).strip() if code_match else None
+        code_match = re.search(r"<code>(.*?)</code>", original_text, flags=re.DOTALL)
+        juhuacode = code_match.group(1).strip() if code_match else None
 
 
         if subscribe_preview_chat_id is not None:
             task = {
                 "file_id": m_fid,
                 "file_type": 'photo',
-                "button_str": '',
+                "button_str": button_str_value,
                 # "comment":'yes',
-                # "juhuacode": juhuacode,
+                "juhuacode": juhuacode,
                 'user_id':subscribe_preview_chat_id, #这里不实际用到user_id，因为_send_one里是直接发给chat_id的
-                'text':preview_text,
+                'text':original_text,
             }
             task = dict(task)
             print(f"📤 创建补档任务，新闻 ID={existing_news['id']}，Task：{task}", flush=True)
