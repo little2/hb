@@ -321,6 +321,105 @@ async def _resolve_claim_terminal_state(ctx: AppCtx, hid: int) -> tuple[str, dic
     # Redis 主 key 丢失但 DB 未过期，且名單未满：视为异常，提示重试
     return "abnormal", hongbao_info
 
+
+def _schedule_finalize_hb_render(
+    ctx: AppCtx,
+    hid: int,
+    chat_id: int,
+    message_id: int,
+    is_caption: bool,
+    lang: str,
+    sender_html: str,
+    total_amount: int,
+    total_count: int,
+    hb_sn: int,
+    intro_text: str,
+    activity_link: str,
+    base_ts: float,
+) -> None:
+    async def _run() -> None:
+        await asyncio.sleep(0.6)
+
+        try:
+            rows = await ctx.r.list_claim_meta(hid)
+        except Exception:
+            return
+
+        if not rows:
+            return
+
+        items: list[tuple[str, int, str]] = []
+        for _uid, amt, ts, name_raw in rows:
+            cost_sec = max(0.0, float(ts) - float(base_ts))
+            cost_txt = _fmt_cost(cost_sec)
+            name = "<code>" + _h(name_raw) + "</code>"
+            items.append((name, int(amt), cost_txt))
+
+        claimed_amount = sum(a for _, a, _ in items)
+        claimed_count = len(items)
+        king_name, king_amt, _ = max(items, key=lambda x: x[1]) if items else ("", 0, "")
+
+        lines = [
+            "<blockquote>" + tr(lang, "post_title", sender=sender_html) + "</blockquote>",
+        ]
+        if intro_text:
+            lines += ["", f"<i>💬 {_h(intro_text)}</i>", ""]
+
+        lines += [
+            tr(lang, "post_total", total_amount=total_amount),
+            tr(lang, "post_count", total_count=total_count),
+            tr(lang, "post_sn", sn=hb_sn),
+            "",
+            tr(lang, "post_stat_amount", claimed_amount=claimed_amount, total_amount=total_amount),
+            tr(lang, "post_stat_count", claimed_count=claimed_count, total_count=total_count),
+            "",
+            "<blockquote>" + tr(lang, "post_list_title") + "</blockquote>",
+            "",
+            tr(lang, "post_king", name=king_name, amt=king_amt),
+            "",
+        ]
+        for name, amt, cost in items:
+            lines.append(tr(lang, "post_item", name=name, amt=amt, cost=cost))
+        lines += ["", tr(lang, "post_finished")]
+
+        new_text = "\n".join(lines)
+
+        try:
+            can_render = await ctx.r.should_render_count(hid, claimed_count)
+        except Exception:
+            can_render = True
+        if not can_render:
+            return
+
+        if activity_link:
+            reply_markup = InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=tr(lang, "btn_activity"), url=activity_link)]]
+            )
+        else:
+            reply_markup = None
+
+        try:
+            if is_caption:
+                await ctx.bot.edit_message_caption(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    caption=_fit_media_caption_html(new_text),
+                    reply_markup=reply_markup,
+                    parse_mode="HTML",
+                )
+            else:
+                await ctx.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    text=new_text,
+                    reply_markup=reply_markup,
+                    parse_mode="HTML",
+                )
+        except TelegramBadRequest as e:
+            print(f"[HB_CLAIM] finalize render failed: hid={hid} err={e}", flush=True)
+
+    asyncio.create_task(_run())
+
 def start_menu_keyboard() -> InlineKeyboardMarkup:
     guider_bot_name = getattr(lz_var, "guider_bot_name", "") or SharedConfig.get("guider_bot_name") or "unknown_bot"
     return InlineKeyboardMarkup(
@@ -1330,6 +1429,7 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict, hb_type: str 
         try:
             cover_file_id = skin.get("file_id_cover")
             cover_file_type = skin.get("file_type_cover") or await HongbaoService.get_file_type_by_file_id(cover_file_id, bot_name)
+            media_caption = _fit_media_caption_html(text)
 
             if cover_file_id:
                 if cover_file_type == "video":
@@ -1337,7 +1437,7 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict, hb_type: str 
                         chat_id=msg['chat_id'],
                         message_thread_id=msg['message_thread_id'],
                         video=cover_file_id,
-                        caption=text,
+                        caption=media_caption,
                         parse_mode="HTML",
                         protect_content=True,
                         reply_markup=kb_claim(hid, lang, hb_type),
@@ -1347,7 +1447,7 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict, hb_type: str 
                         chat_id=msg['chat_id'],
                         message_thread_id=msg['message_thread_id'],
                         photo=cover_file_id,
-                        caption=text,
+                        caption=media_caption,
                         parse_mode="HTML",
                         protect_content=True,
                         reply_markup=kb_claim(hid, lang, hb_type),
@@ -1504,11 +1604,8 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
 
 
             try:
-                
-
                 if base_msg.caption is not None:
                     caption = base_msg.caption or ""
-                    
                     entities = base_msg.caption_entities or []
                     new_text = Text.from_entities(caption, entities).as_html()
 
@@ -1517,6 +1614,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
                     elif state == "expired":
                         new_text += "\n\n" + tr(lang, "post_expired")
 
+                    new_text = _fit_media_caption_html(new_text)
                     await base_msg.edit_caption(
                         caption=new_text,
                         reply_markup=new_reply_markup,
@@ -1545,12 +1643,12 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
                     except TelegramBadRequest:
                         pass
         return
-        
+
     # 抢完（手慢了）
     elif code == -1 or amount <= 0:
         await callback.answer(tr(lang, "too_late"), show_alert=False)
         return
-       
+
     else:
         # ======= 首次抢到：编辑群里原消息（不再发新消息）=======
         u = callback.from_user
@@ -1590,14 +1688,9 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         parsed_sender, total_amount, total_count, hb_sn, created_at = _parse_base(old_text, lang)
         sender = await _resolve_sender_name(ctx, skin, parsed_sender, lang)
 
-        items = _parse_items(old_text, lang)
-
         sender = _h(sender)
         created_at = _h(created_at)
 
-        # items：分两种路径
-        # - 未抢完：为了最小改动，可继续 parse old_text，再 append 本人
-        # - 抢完：必须从 Redis 全量重建（解决“名单盖掉”）
         if is_empty:
             try:
                 if base_msg:
@@ -1610,32 +1703,33 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
             except Exception:
                 pass
 
+        # 始终从 Redis 全量重建名单，避免并发时旧快照覆盖新版本
+        try:
             rows = await ctx.r.list_claim_meta(hid)  # [(uid, amt, ts, name), ...] ts 升序
-            items = []
-            # 计算耗时：按 base_msg.date 作为起点
-            try:
-                dt0_ts = base_msg.date.timestamp()
-            except Exception:
-                dt0_ts = datetime.now().timestamp()
+        except Exception:
+            rows = []
 
-            for _uid, amt, ts, name_raw in rows:
-                    cost_sec = max(0.0, float(ts) - float(dt0_ts))
-                    cost_txt = _fmt_cost(cost_sec)
-                    name = "<code>" + _h(name_raw) + "</code>"
-                    items.append((name, int(amt), cost_txt))
-        else:            
-            items = _parse_items(old_text, lang)
+        items = []
+        try:
+            dt0_ts = base_msg.date.timestamp()
+        except Exception:
+            dt0_ts = datetime.now().timestamp()
 
-            # 当前这次耗时
+        for _uid, amt, ts, name_raw in rows:
+            cost_sec = max(0.0, float(ts) - float(dt0_ts))
+            cost_txt = _fmt_cost(cost_sec)
+            name = "<code>" + _h(name_raw) + "</code>"
+            items.append((name, int(amt), cost_txt))
+
+        # 极端回退：若 Redis 刚好短暂不可读，至少展示当前抢到者
+        if not items and code == 0 and amount > 0:
             try:
                 dt0 = base_msg.date
                 dt1 = datetime.now(dt0.tzinfo) if dt0.tzinfo else datetime.now()
                 cost_sec = (dt1 - dt0).total_seconds()
             except Exception:
                 cost_sec = 9999.0
-            cost_txt = _fmt_cost(cost_sec)
-
-            items.append((claimer, amount, cost_txt))
+            items.append((claimer, amount, _fmt_cost(cost_sec)))
         
         claimed_amount = sum(a for _, a, _ in items)
         claimed_count = len(items)
@@ -1687,9 +1781,17 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         else:
             new_reply_markup = base_msg.reply_markup
 
-        # （可选）群消息编辑节流：只节流“展示更新”，不影响抢到/DM
+        # 防止并发旧协程回写旧名单（单调递增门闩）
         do_edit = True
-        if (not is_empty) and GROUP_NOTICE_THROTTLE:
+        try:
+            can_render = await ctx.r.should_render_count(hid, claimed_count)
+        except Exception:
+            can_render = True
+        if not can_render:
+            do_edit = False
+
+        # （可选）群消息编辑节流：只节流“展示更新”，不影响抢到/DM
+        if do_edit and (not is_empty) and GROUP_NOTICE_THROTTLE:
             try:
                 ok_to_edit = await ctx.r.allow_group_notice(hid, GROUP_NOTICE_PER_SEC)
             except Exception:
@@ -1701,6 +1803,7 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         if do_edit:
             try:
                 if base_msg.caption is not None:
+                    new_text = _fit_media_caption_html(new_text)
                     await base_msg.edit_caption(
                         caption=new_text,
                         reply_markup=new_reply_markup,
@@ -1712,8 +1815,33 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
                         reply_markup=new_reply_markup,
                         parse_mode="HTML",
                     )
-            except TelegramBadRequest:
-                pass
+            except TelegramBadRequest as e:
+                print(
+                    f"[HB_CLAIM] edit message failed: hid={hid} claimed_count={claimed_count} err={e}",
+                    flush=True,
+                )
+
+        if is_empty:
+            activity_link = skin.get("activity_link") or ""
+            try:
+                base_ts = base_msg.date.timestamp()
+            except Exception:
+                base_ts = datetime.now().timestamp()
+            _schedule_finalize_hb_render(
+                ctx=ctx,
+                hid=hid,
+                chat_id=base_msg.chat.id,
+                message_id=base_msg.message_id,
+                is_caption=base_msg.caption is not None,
+                lang=lang,
+                sender_html=sender,
+                total_amount=total_amount,
+                total_count=total_count,
+                hb_sn=hb_sn,
+                intro_text=skin.get("intro_text") or "",
+                activity_link=activity_link,
+                base_ts=base_ts,
+            )
 
     # ======= 私信通知（成功抢到才会走到这里） =======
     if await ctx.r.should_skip_dm(uid):
@@ -1926,19 +2054,33 @@ def _parse_base(old_text: str, lang: str):
     return sender, total_amount, total_count, hb_sn, created_at
 
 
-def _parse_items(old_text: str, lang: str):
-    RE_TOTAL, RE_COUNT, RE_HEADER, RE_SN, RE_TIME, RE_ITEM = get_patterns(lang)
-    items = []
-    for m in RE_ITEM.finditer(old_text):
-        name = m.group(1).strip()
-        amt = int(m.group(2))
-        cost = m.group(3).strip()
-        items.append((name, amt, cost))
-    return items
-
-
 def _fmt_cost(seconds: float) -> str:
     return ">5s" if seconds >= 5.0 else f"{seconds:.3f}s"
+
+
+def _fit_media_caption_html(text: str, max_len: int = 1024) -> str:
+    """
+    Telegram 媒体 caption 有长度上限（通常 1024）。
+    这里按“整行裁剪”避免 edit_caption 因过长失败。
+    """
+    text = text or ""
+    if len(text) <= max_len:
+        return text
+
+    lines = text.split("\n")
+    suffix = "\n\n<i>…名单过长，已省略部分</i>"
+
+    while lines and len("\n".join(lines) + suffix) > max_len:
+        lines.pop()
+
+    if not lines:
+        fallback = "<i>…内容过长，已省略</i>"
+        return fallback[:max_len]
+
+    compact = "\n".join(lines) + suffix
+    if len(compact) > max_len:
+        compact = compact[:max_len]
+    return compact
 
 
 def _normalize_activity_link(link: str | None) -> str:
