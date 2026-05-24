@@ -13,6 +13,7 @@ def k_dm_block(uid: int) -> str: return f"dm_block:{uid}"
 def k_notice(hid: int, sec_bucket: int) -> str: return f"hb:{hid}:notice:{sec_bucket}"
 def k_skin(hid: int) -> str: return f"hb:{hid}:skin"
 def k_claim_meta(hid: int) -> str: return f"hb:{hid}:claims"
+def k_claim_gate(hid: int) -> str: return f"hb:{hid}:claim_gate"
 
 def split_amounts(total_amount: int, total_count: int, min_unit: int) -> List[int]:
     if total_count <= 0:
@@ -39,13 +40,21 @@ def split_amounts(total_amount: int, total_count: int, min_unit: int) -> List[in
 
 
 LUA_CLAIM = r"""
--- KEYS: list, u, st
+-- KEYS: list, u, st, gate
 -- ARGV[1] ttl_sec (0 => keep existing ttl)
+-- ARGV[2] gate_ms (serial gate window)
 local ttl = tonumber(ARGV[1])
+local gate_ms = tonumber(ARGV[2]) or 800
 
 local prev = redis.call("GET", KEYS[2])
 if prev then
   return {1, tonumber(prev), 0} -- already
+end
+
+-- 同一红包在 gate_ms 内仅允许一次 claim 进入，避免并发刷新覆盖
+local gate_ok = redis.call("SET", KEYS[4], "1", "NX", "PX", gate_ms)
+if not gate_ok then
+    return {-3, 0, 0} -- busy, retry later
 end
 
 local v = redis.call("RPOP", KEYS[1])
@@ -161,8 +170,9 @@ class RedisLayer:
 
 
     async def claim(self, hid: int, uid: int) -> Tuple[int, int, bool]:
-        keys = [k_list(hid), k_u(hid, uid), k_st(hid, uid)]
-        argv = ["0"]
+        keys = [k_list(hid), k_u(hid, uid), k_st(hid, uid), k_claim_gate(hid)]
+        # gate_ms > 700ms: 确保红包消息刷新有足够时间串行完成
+        argv = ["0", "800"]
         try:
             res = await self.rds.evalsha(self.sha_claim, len(keys), *keys, *argv)
         except NoScriptError:
