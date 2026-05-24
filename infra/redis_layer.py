@@ -122,15 +122,37 @@ return {0, tonumber(amt)}
 """
 
 
+LUA_RENDER_GATE = r"""
+-- KEYS: rendered_count_key
+-- ARGV[1]: new_count
+-- ARGV[2]: ttl_sec (0 => no expire update)
+local new_count = tonumber(ARGV[1]) or 0
+local ttl = tonumber(ARGV[2]) or 0
+
+local cur = tonumber(redis.call("GET", KEYS[1]) or "-1")
+if new_count < cur then
+    return 0
+end
+
+redis.call("SET", KEYS[1], new_count)
+if ttl > 0 then
+    redis.call("EXPIRE", KEYS[1], ttl)
+end
+return 1
+"""
+
+
 class RedisLayer:
     def __init__(self, rds: redis.Redis):
         self.rds = rds
         self.sha_claim: Optional[str] = None
         self.sha_redeem: Optional[str] = None
+        self.sha_render_gate: Optional[str] = None
 
     async def load_scripts(self) -> None:
         self.sha_claim = await self.rds.script_load(LUA_CLAIM)
         self.sha_redeem = await self.rds.script_load(LUA_REDEEM_PREP)
+        self.sha_render_gate = await self.rds.script_load(LUA_RENDER_GATE)
 
     async def init_list(self, hid: int, amounts: List[int], ttl_sec: int) -> None:
         key = k_list(hid)
@@ -214,6 +236,18 @@ class RedisLayer:
         if n == 1:
             await self.rds.expire(key, 2)
         return n <= per_sec
+
+    async def should_render_count(self, hid: int, new_count: int) -> bool:
+        keys = [k_rendered_count(hid)]
+        ttl = await self.rds.ttl(k_list(hid))
+        ttl_sec = int(ttl) if ttl and ttl > 0 else 0
+        argv = [str(int(new_count)), str(ttl_sec)]
+        try:
+            res = await self.rds.evalsha(self.sha_render_gate, len(keys), *keys, *argv)
+        except NoScriptError:
+            self.sha_render_gate = await self.rds.script_load(LUA_RENDER_GATE)
+            res = await self.rds.evalsha(self.sha_render_gate, len(keys), *keys, *argv)
+        return bool(int(res))
 
     async def record_claim_meta(
         self,
