@@ -24,7 +24,7 @@ def _caller_info():
 
 def _is_disconnect_error(exc: BaseException) -> bool:
     """判断是否为可重试的连接中断错误。"""
-    codes = {2006, 2013, 104}
+    codes = {2003, 2006, 2013, 104}
     try:
         code = exc.args[0] if getattr(exc, "args", None) else None
     except Exception:

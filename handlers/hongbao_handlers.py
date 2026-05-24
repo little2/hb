@@ -532,7 +532,11 @@ async def _load_cached_call_rows(ctx: AppCtx, user_id: int) -> list[dict]:
 
 
 async def _build_call_rows_for_user(ctx: AppCtx, user_id: int) -> list[dict]:
-    setting = await HongbaoService.get_hongbao_user_setting(user_id)
+    try:
+        setting = await HongbaoService.get_hongbao_user_setting(user_id)
+    except Exception as e:
+        print(f"[HB_CALL] load user setting failed, fallback default: {e}", flush=True)
+        setting = None
     bias = (setting or {}).get("bias")
     bot_username = getattr(lz_var, "bot_username", "") or ""
     rows = await HongbaoService.list_call_cutedd(bot_username, CALL_MENU_ACT_ID)
@@ -699,7 +703,11 @@ async def send_start_menu(ctx: AppCtx, chat_id: int, user_id: int, delete_messag
         except (TelegramBadRequest, TelegramForbiddenError, TelegramNotFound):
             pass
 
-    setting = await HongbaoService.get_hongbao_user_setting(user_id)
+    try:
+        setting = await HongbaoService.get_hongbao_user_setting(user_id)
+    except Exception as e:
+        print(f"[HB_MENU] load user setting failed, fallback to text menu: {e}", flush=True)
+        setting = None
     cover_file_id = (setting or {}).get("cover_file_id") or ""
 
     if cover_file_id:
@@ -1116,9 +1124,13 @@ async def cmd_hb(message: Message, ctx: AppCtx):
         pass
 
     default_skin = lz_var.skins.get("hb_cover") or {}
-    user_setting = await HongbaoService.get_hongbao_user_setting(
-        message.from_user.id if message.from_user else 0
-    )
+    try:
+        user_setting = await HongbaoService.get_hongbao_user_setting(
+            message.from_user.id if message.from_user else 0
+        )
+    except Exception as e:
+        print(f"[HB_CMD] load user setting failed, use default skin: {e}", flush=True)
+        user_setting = None
     cover_file_id = (user_setting or {}).get("cover_file_id") or default_skin.get("file_id", "")
     cover_type = (user_setting or {}).get("cover_type") or default_skin.get("file_type", "")
     bot_username = getattr(lz_var, "bot_username", "") or ""
@@ -1882,7 +1894,10 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
     
     user_contribute_today = await HongbaoService.get_contribute_today(uid)
     if user_contribute_today and user_contribute_today.get("count", 0) < 1:
-        await callback.answer(tr(lang, "redeem_after_talk"), show_alert=True)
+        try:
+            await callback.answer(tr(lang, "redeem_after_talk"), show_alert=True)
+        except TelegramBadRequest:
+            pass
         return
 
     try:
