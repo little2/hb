@@ -106,15 +106,7 @@ class HongbaoService:
                 (hongbao_id, user_id, amount),
             )
 
-            # # 确保 user 行存在（最小写入，不覆盖其他字段）
-            # await cur.execute(
-            #     """
-            #     INSERT INTO `user` (user_id, active, point, create_time, update_time)
-            #     VALUES (%s, 1, %s, NOW(), NOW())
-            #     ON DUPLICATE KEY UPDATE point = point + %s,update_time = NOW()
-            #     """,
-            #     (user_id, amount, amount),
-            # )
+
             stat_date = datetime.now().strftime("%Y-%m-%d")
             timestamp = int(datetime.now().timestamp())
             hb_type = skin.get("hb_type") if skin else None

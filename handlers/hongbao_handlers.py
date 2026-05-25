@@ -1869,7 +1869,17 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
                     parse_mode="HTML",
                     reply_markup=kb_redeem(hid, amount, lang, hb_type, skin.get("activity_link")),
                 )
-        except TelegramBadRequest:
+       
+        
+        # except TelegramBadRequest as e:
+        #     print(f"TelegramBadRequest=>{e}")
+        #     await ctx.bot.send_message(
+        #         uid,
+        #         tr(lang, "dm_got", amount=amount),
+        #         reply_markup=kb_redeem(hid, amount, lang, hb_type, skin.get("activity_link")),
+        #     )
+        except Exception as e:
+            print(f"Send DM error: {e}")
             await ctx.bot.send_message(
                 uid,
                 tr(lang, "dm_got", amount=amount),
@@ -1923,8 +1933,15 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
         await callback.message.answer(tr(lang, "redeem_fail_expired"))
         try:
             hongbao_info = await HongbaoService.get_hongbao(hid)  # 仅为了日志记录，顺便验证是否真的过期（MySQL 层）
-            expired_hb_type = _normalize_hb_type((hongbao_info or {}).get("hb_type") or hb_type)
-            await callback.message.edit_reply_markup(reply_markup=kb_expired(lang=expired_hb_type, hb_type=expired_hb_type, activity_link=hongbao_info.get("activity_link")))
+            hongbao_info = hongbao_info or {}
+            expired_hb_type = _normalize_hb_type(hongbao_info.get("hb_type") or hb_type)
+            await callback.message.edit_reply_markup(
+                reply_markup=kb_expired(
+                    lang=expired_hb_type,
+                    hb_type=expired_hb_type,
+                    activity_link=hongbao_info.get("activity_link"),
+                )
+            )
         except TelegramBadRequest:
             await callback.message.edit_reply_markup(reply_markup=None)
             pass
