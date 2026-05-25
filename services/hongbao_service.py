@@ -119,7 +119,7 @@ class HongbaoService:
             timestamp = int(datetime.now().timestamp())
             hb_type = skin.get("hb_type") if skin else None
             if hb_type=="hb":
-                print(f"⚡ 特例红包，直接写入 transaction 表，user_id={user_id}, amount={amount}")
+                print(f"⚡ 积分红包，直接写入 transaction 表，user_id={user_id}, amount={amount}")
                 sender_id = skin.get("sender_user_id") or skin.get("sender_id") or 666666
                 transaction_description = skin.get("id") or 0
                 memo = skin.get("hb_key") or ""
@@ -144,8 +144,17 @@ class HongbaoService:
                     (user_id, receiver_fee, receiver_fee),
                 )
 
+                # # 再查询一次 user 的积分 point, 并显示出来
+                # await cur.execute(
+                #     "SELECT point FROM `user` WHERE user_id=%s",
+                #     (user_id,)
+                # )
+                # user_row = await cur.fetchone()
+                # current_point = user_row["point"] if user_row else 0
+                # print(f"⚡ 用户 {user_id} 当前积分: {current_point}")
+
             else:    
-                print(f"⚡ 常规红包，写入 contribute_today 表，user_id={user_id}, amount={amount}, stat_date={stat_date}")
+                print(f"⚡ 龙精红包，写入 contribute_today 表，user_id={user_id}, amount={amount}, stat_date={stat_date}")
                 await cur.execute(
                     """
                     INSERT INTO `contribute_today` (user_id, stat_date, update_timestamp, drangon)
