@@ -222,10 +222,13 @@ def kb_redeem(hid: int, amount: int, lang: str, hb_type: str, activity_link: str
     ]
 
     if activity_link:
+        print("activity_link={activity_link}", flush=True)
         buttons.append(InlineKeyboardButton(
             text=tr(lang, "btn_activity"),
             url=activity_link
         ))
+    else:
+        print("no activity_link", flush=True)
 
     return InlineKeyboardMarkup(inline_keyboard=[buttons])
 

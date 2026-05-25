@@ -6,6 +6,64 @@ from utils.db.tgone_mysql import MySQLPool
 
 class HongbaoService:
     @staticmethod
+    async def _repair_hb_credit_after_duplicate(hongbao_id: int, user_id: int, amount: int, skin: dict | None = None) -> bool:
+        """
+        兜底补账：当 hongbao_redeem 已存在（重复键）但积分流水缺失时，补写 transaction + user.point。
+        目的：避免“显示已领取但实际未到账”。
+        """
+        async def _txn(cur):
+            tx_desc = str((skin or {}).get("id") or hongbao_id)
+
+            await cur.execute(
+                """
+                SELECT transaction_id
+                FROM `transaction`
+                WHERE receiver_id=%s
+                  AND transaction_type=%s
+                  AND transaction_description=%s
+                LIMIT 1
+                FOR UPDATE
+                """,
+                (user_id, "hongbao", tx_desc),
+            )
+            exists = await cur.fetchone()
+            if exists:
+                return False
+
+            timestamp = int(datetime.now().timestamp())
+            sender_id = (skin or {}).get("sender_user_id") or (skin or {}).get("sender_id") or 666666
+            memo = (skin or {}).get("hb_key") or f"hb:{hongbao_id}"
+            sender_fee = -abs(int(amount or 0))
+            receiver_fee = abs(int(amount or 0))
+
+            await cur.execute(
+                """
+                INSERT INTO `transaction` (sender_id, sender_fee, receiver_id, receiver_fee, transaction_type, transaction_description, transaction_timestamp, memo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (sender_id, sender_fee, user_id, receiver_fee, "hongbao", tx_desc, timestamp, memo),
+            )
+
+            await cur.execute(
+                """
+                INSERT INTO `user` (user_id, active, point, create_time, update_time)
+                VALUES (%s, 1, %s, NOW(), NOW())
+                ON DUPLICATE KEY UPDATE point = point + %s,update_time = NOW()
+                """,
+                (user_id, receiver_fee, receiver_fee),
+            )
+            return True
+
+        try:
+            return bool(await MySQLPool.transaction(_txn))
+        except Exception as e:
+            print(
+                f"[HB_REDEEM_REPAIR] failed: hongbao_id={hongbao_id} user_id={user_id} amount={amount} err={e}",
+                flush=True,
+            )
+            return False
+
+    @staticmethod
     async def create_hongbao(sender_user_id: int, chat_id: int, total_amount: int, total_count: int, expire_at: datetime, skin: dict | None = None, hb_type: str = "lj") -> int:
 
         # {
@@ -62,7 +120,7 @@ class HongbaoService:
             hb_type = skin.get("hb_type") if skin else None
             if hb_type=="hb":
                 print(f"⚡ 特例红包，直接写入 transaction 表，user_id={user_id}, amount={amount}")
-                sender_id = skin.get("sender_id") or 666666
+                sender_id = skin.get("sender_user_id") or skin.get("sender_id") or 666666
                 transaction_description = skin.get("id") or 0
                 memo = skin.get("hb_key") or ""
 
@@ -101,6 +159,19 @@ class HongbaoService:
             await MySQLPool.transaction(_txn)
             return True, "ok"
         except aiomysql.IntegrityError:
+            # 兜底：极端情况下可能出现“hongbao_redeem 已写入，但积分流水/余额未落库”
+            # 此处仅对 hb（积分红包）尝试补账，避免误二次入账。
+            hb_type = (skin or {}).get("hb_type") if skin else None
+            if hb_type == "hb":
+                repaired = await HongbaoService._repair_hb_credit_after_duplicate(
+                    hongbao_id=hongbao_id,
+                    user_id=user_id,
+                    amount=amount,
+                    skin=skin,
+                )
+                if repaired:
+                    return True, "ok_repaired"
+
             return False, "already_redeemed"
         except Exception as e:
             return False, f"db_error:{e!s}"
