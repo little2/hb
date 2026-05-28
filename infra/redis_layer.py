@@ -14,6 +14,7 @@ def k_notice(hid: int, sec_bucket: int) -> str: return f"hb:{hid}:notice:{sec_bu
 def k_skin(hid: int) -> str: return f"hb:{hid}:skin"
 def k_claim_meta(hid: int) -> str: return f"hb:{hid}:claims"
 def k_claim_gate(hid: int) -> str: return f"hb:{hid}:claim_gate"
+def k_render_finalized(hid: int) -> str: return f"hb:{hid}:render:finalized"
 
 def split_amounts(total_amount: int, total_count: int, min_unit: int) -> List[int]:
     if total_count <= 0:
@@ -225,6 +226,17 @@ class RedisLayer:
 
     async def should_skip_dm(self, uid: int) -> bool:
         return bool(await self.rds.exists(k_dm_block(uid)))
+
+    async def is_render_finalized(self, hid: int) -> bool:
+        return bool(await self.rds.exists(k_render_finalized(hid)))
+
+    async def mark_render_finalized(self, hid: int, ttl_sec: int | None = None) -> None:
+        key = k_render_finalized(hid)
+        if ttl_sec is None:
+            ttl = await self.rds.ttl(k_list(hid))
+            ttl_sec = int(ttl) if ttl and ttl > 0 else 86400
+        ttl_sec = max(1, int(ttl_sec))
+        await self.rds.setex(key, ttl_sec, "1")
 
     async def set_dm_block(self, uid: int, ttl_sec: int) -> None:
         await self.rds.setex(k_dm_block(uid), ttl_sec, "1")

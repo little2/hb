@@ -338,104 +338,6 @@ async def _resolve_claim_terminal_state(ctx: AppCtx, hid: int) -> tuple[str, dic
     return "abnormal", hongbao_info
 
 
-def _schedule_finalize_hb_render(
-    ctx: AppCtx,
-    hid: int,
-    chat_id: int,
-    message_id: int,
-    is_caption: bool,
-    lang: str,
-    sender_html: str,
-    total_amount: int,
-    total_count: int,
-    hb_sn: int,
-    intro_text: str,
-    activity_link: str,
-    base_ts: float,
-) -> None:
-    async def _run() -> None:
-        await asyncio.sleep(0.6)
-
-        try:
-            rows = await ctx.r.list_claim_meta(hid)
-        except Exception:
-            return
-
-        if not rows:
-            return
-
-        items: list[tuple[str, int, str]] = []
-        for _uid, amt, ts, name_raw in rows:
-            cost_sec = max(0.0, float(ts) - float(base_ts))
-            cost_txt = _fmt_cost(cost_sec)
-            name = "<code>" + _h(name_raw) + "</code>"
-            items.append((name, int(amt), cost_txt))
-
-        claimed_amount = sum(a for _, a, _ in items)
-        claimed_count = len(items)
-        king_name, king_amt, _ = max(items, key=lambda x: x[1]) if items else ("", 0, "")
-
-        lines = [
-            "<blockquote>" + tr(lang, "post_title", sender=sender_html) + "</blockquote>",
-        ]
-        if intro_text:
-            lines += ["", f"<i>💬 {_h(intro_text)}</i>", ""]
-
-        lines += [
-            tr(lang, "post_total", total_amount=total_amount),
-            tr(lang, "post_count", total_count=total_count),
-            tr(lang, "post_sn", sn=hb_sn),
-            "",
-            tr(lang, "post_stat_amount", claimed_amount=claimed_amount, total_amount=total_amount),
-            tr(lang, "post_stat_count", claimed_count=claimed_count, total_count=total_count),
-            "",
-            "<blockquote>" + tr(lang, "post_list_title") + "</blockquote>",
-            "",
-            tr(lang, "post_king", name=king_name, amt=king_amt),
-            "",
-        ]
-        for name, amt, cost in items:
-            lines.append(tr(lang, "post_item", name=name, amt=amt, cost=cost))
-        lines += ["", tr(lang, "post_finished")]
-
-        new_text = "\n".join(lines)
-
-        try:
-            can_render = await ctx.r.should_render_count(hid, claimed_count)
-        except Exception:
-            can_render = True
-        if not can_render:
-            return
-
-        if activity_link:
-            reply_markup = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text=tr(lang, "btn_activity"), url=activity_link)]]
-            )
-        else:
-            reply_markup = None
-
-        try:
-            if is_caption:
-                await ctx.bot.edit_message_caption(
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    caption=_fit_media_caption_html(new_text),
-                    reply_markup=reply_markup,
-                    parse_mode="HTML",
-                )
-            else:
-                await ctx.bot.edit_message_text(
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    text=new_text,
-                    reply_markup=reply_markup,
-                    parse_mode="HTML",
-                )
-        except TelegramBadRequest as e:
-            print(f"[HB_CLAIM] finalize render failed: hid={hid} err={e}", flush=True)
-
-    asyncio.create_task(_run())
-
 def start_menu_keyboard() -> InlineKeyboardMarkup:
     guider_bot_name = getattr(lz_var, "guider_bot_name", "") or SharedConfig.get("guider_bot_name") or "unknown_bot"
     return InlineKeyboardMarkup(
@@ -1424,7 +1326,6 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict, hb_type: str 
         await ctx.r.init_list(hid, amounts, ttl_sec)
 
 
-        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         sender_name = msg["sender_name"]
 
         line = [
@@ -1611,6 +1512,13 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
         if state == "abnormal":
             return
 
+        if state == "finished":
+            try:
+                if await ctx.r.is_render_finalized(hid):
+                    return
+            except Exception:
+                pass
+
         if base_msg:
             print(f"Base message: chat_id={base_msg.chat.id} message_id={base_msg.message_id}")
             try:
@@ -1717,13 +1625,18 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
     if base_msg:
         lock = _get_hb_render_lock(hid)
         async with lock:
+            try:
+                if await ctx.r.is_render_finalized(hid):
+                    return
+            except Exception:
+                pass
+
             old_text = (base_msg.caption or base_msg.text or "")
 
-            parsed_sender, total_amount, total_count, hb_sn, created_at = _parse_base(old_text, lang)
+            parsed_sender, total_amount, total_count, hb_sn, _created_at = _parse_base(old_text, lang)
             sender = await _resolve_sender_name(ctx, skin, parsed_sender, lang)
 
             sender = _h(sender)
-            created_at = _h(created_at)
 
             rows = await ctx.r.list_claim_meta(hid)  # [(uid, amt, ts, name), ...] ts 升序
             items = []
@@ -1828,7 +1741,10 @@ async def cb_claim(callback: CallbackQuery, ctx: AppCtx):
                     pass
 
             if is_empty:
-                _HB_RENDER_LOCKS.pop(hid, None)
+                try:
+                    await ctx.r.mark_render_finalized(hid)
+                except Exception:
+                    pass
 
     # ======= 私信通知（成功抢到才会走到这里） =======
     if await ctx.r.should_skip_dm(uid):
