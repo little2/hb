@@ -82,16 +82,17 @@ class HongbaoService:
         activity_link = skin["activity_link"] if skin else None
         hb_type = hb_type or "lj"
 
+        async def _txn(cur):
+            await cur.execute(
+                """
+                INSERT INTO hongbao(sender_user_id, chat_id, total_amount, total_count, expire_at, status, hb_key, hb_type, file_id_cover, file_id_dm, intro_text, dm_text, activity_link)
+                VALUES(%s, %s, %s, %s, %s, 'active', %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (sender_user_id, chat_id, total_amount, total_count, expire_at, hb_key, hb_type, file_id_cover, file_id_dm, intro_text, dm_text, activity_link),
+            )
+            return int(cur.lastrowid or 0)
 
-        await MySQLPool.execute(
-            """
-            INSERT INTO hongbao(sender_user_id, chat_id, total_amount, total_count, expire_at, status, hb_key, hb_type, file_id_cover, file_id_dm, intro_text, dm_text, activity_link)
-            VALUES(%s, %s, %s, %s, %s, 'active', %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (sender_user_id, chat_id, total_amount, total_count, expire_at, hb_key, hb_type, file_id_cover, file_id_dm, intro_text, dm_text, activity_link),
-        )
-        row = await MySQLPool.fetchone("SELECT LAST_INSERT_ID() AS id")
-        return int(row["id"])
+        return int(await MySQLPool.transaction(_txn) or 0)
 
     @staticmethod
     async def bind_message(hongbao_id: int, message_id: int) -> None:

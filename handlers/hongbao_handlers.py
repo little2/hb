@@ -1905,11 +1905,14 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
     hb_type = _get_callback_hb_type(callback.data)
     lang = hb_type
 
-    print(f"1908=hb_type=>{hb_type}", flush=True)
+    
 
 
     uid = callback.from_user.id
     hid = int(callback.data.split(":")[1])
+
+
+    print(f"1908=hb_type=>{hb_type} uid:{uid} hid:{hid}", flush=True)
     
     user_contribute_today = await HongbaoService.get_contribute_today(uid)
     if user_contribute_today and user_contribute_today.get("count", 0) < 1:
