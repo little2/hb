@@ -187,6 +187,9 @@ class HongbaoService:
                 (hongbao_id,)
             )
             MySQLPool.cache.set(key, row, ttl=300)  # 缓存 5 分钟
+            print(f"Cache miss for hongbao_id={hongbao_id}", flush=True)
+        else:
+            print(f"Cache hit for hongbao_id={hongbao_id}", flush=True)
         return row  # 返回 dict 或 None
 
     @staticmethod

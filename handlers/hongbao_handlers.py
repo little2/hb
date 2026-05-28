@@ -1905,6 +1905,8 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
     hb_type = _get_callback_hb_type(callback.data)
     lang = hb_type
 
+    print(f"1908=hb_type=>{hb_type}", flush=True)
+
 
     uid = callback.from_user.id
     hid = int(callback.data.split(":")[1])
@@ -1951,7 +1953,7 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
             pass
         return
 
-    if code == 2:
+    elif code == 2:
         # 已领取：按钮改“已领取”，提示用“重复点击已忽略/已领取过”二选一
         try:
             await callback.message.edit_reply_markup(reply_markup=kb_done(lang=lang, hb_type=hb_type, activity_link=skin.get("activity_link")))
@@ -1960,7 +1962,7 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
         await callback.message.answer(tr(lang, "redeem_ok_dup"))
         return
 
-    if code == 3:
+    elif code == 3:
         await callback.message.answer(tr(lang, "redeem_busy"))
         return
 
@@ -1970,19 +1972,18 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
 
 
 
-    print(f"Redeem prep success: hid={hid} uid={uid} amount={amount}")
+    print(f"Redeem prep success: hid={hid} uid={uid} hb_type={hb_type} amount={amount} skin={skin}")
 
     ok, msg = await HongbaoService.redeem_add_points(hid, uid, amount, skin)
     if ok:
         await ctx.r.set_claimed(hid, uid)
         try:
             await callback.message.edit_reply_markup(reply_markup=kb_done(lang=lang, hb_type=hb_type, activity_link=skin.get("activity_link")))
-        except TelegramBadRequest:
-            pass
-        await callback.message.answer(tr(lang, "redeem_ok", amount=amount))
+            await callback.message.answer(tr(lang, "redeem_ok", amount=amount))
+        except TelegramBadRequest as e:
+            print(f"TelegramBadRequest: {e}", flush=True)
         return
-
-    if msg == "already_redeemed":
+    elif msg == "already_redeemed":
         await ctx.r.set_claimed(hid, uid)
         try:
             await callback.message.edit_reply_markup(reply_markup=kb_done(lang=lang, hb_type=hb_type, activity_link=skin.get("activity_link")))
@@ -1990,7 +1991,6 @@ async def cb_redeem(callback: CallbackQuery, ctx: AppCtx):
             pass
         await callback.message.answer(tr(lang, "redeem_ok_dup"))
         return
-
     await ctx.r.rollback_pending(hid, uid)
     await callback.message.answer(tr(lang, "redeem_fail", msg=msg))
 
