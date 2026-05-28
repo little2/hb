@@ -267,11 +267,15 @@ def _normalize_hb_type(hb_type: str | None) -> str:
 
 
 def _get_callback_hb_type(callback_data: str | None) -> str:
+    print(f"270-callback_data={callback_data}", flush=True)
     parts = (callback_data or "").split(":")
     if len(parts) >= 3:
+        print(f"273-parts={parts}", flush=True)
         return _normalize_hb_type(parts[2])
-    if len(parts) >= 2 and parts[0] in {"hb_done", "hb_expired"}:
+    elif len(parts) >= 2 and parts[0] in {"hb_done", "hb_expired"}:
+        print(f"276-parts={parts}", flush=True)
         return _normalize_hb_type(parts[1])
+    print(f"278-parts={parts}", flush=True)
     return "lj"
 
 
