@@ -1,7 +1,7 @@
 # news_sender.py
 import asyncio
 from aiogram import Bot
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CopyTextButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CopyTextButton, ReactionTypeEmoji
 from aiogram.exceptions import TelegramRetryAfter
 
 from news_db import NewsDatabase
@@ -107,6 +107,18 @@ async def _send_one(bot: Bot, task: dict, rate_limit: int, max_retries: int):
                     retSent = await bot.send_video(video=task["file_id"], **send_kwargs)
                 else:
                     retSent = await bot.send_document(document=task["file_id"], **send_kwargs)
+
+                # 若接收者是频道或群组，发送后在 caption 追加一个香蕉 emoji
+                chat_type = getattr(getattr(retSent, "chat", None), "type", None)
+                if chat_type in {"group", "supergroup", "channel"}:
+                    try:
+                        await bot.set_message_reaction(
+                            chat_id=user_id,
+                            message_id=retSent.message_id,
+                            reaction=[ReactionTypeEmoji(emoji="🍌")],
+                        )
+                    except Exception as edit_err:
+                        print(f"⚠️ 添加香蕉 reaction 失败: {edit_err}", flush=True)
             else:
                 message_kwargs = {
                     "chat_id": user_id,
