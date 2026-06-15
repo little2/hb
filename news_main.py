@@ -297,7 +297,9 @@ async def handle_set_comment_command(message: Message):
 async def update_setting_handler(message: Message):
     try:
         SharedConfig.load(True)
+        subscribe_preview_chat_id = SharedConfig.get('subscribe_preview_chat_id')
         await safe_reply(message, "✅ 共享设定已更新")
+        await safe_reply(message, f"subscribe_preview_chat_id=>{subscribe_preview_chat_id}")
     except Exception as e:
         print(f"⚠️ update_setting failed: {e}", flush=True)
         await safe_reply(message, "⚠️ 更新共享设定失败，请稍后重试")
