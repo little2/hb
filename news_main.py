@@ -297,7 +297,13 @@ async def handle_set_comment_command(message: Message):
 async def update_setting_handler(message: Message):
     try:
         SharedConfig.load(True)
-        subscribe_preview_chat_id = SharedConfig.get('subscribe_preview_chat_id')
+        #$subscribe_preview_chat_id = $setting_data['chat']['subscribe_preview']['chat_id'];
+
+        chat_cfg = SharedConfig.get("chat") or {}
+        subscribe_preview = chat_cfg.get("subscribe_preview") or {}
+        subscribe_preview_chat_id = subscribe_preview.get("chat_id")
+
+        # subscribe_preview_chat_id = SharedConfig.get('subscribe_preview_chat_id')
         await safe_reply(message, "✅ 共享设定已更新")
         await safe_reply(message, f"subscribe_preview_chat_id=>{subscribe_preview_chat_id}")
     except Exception as e:
@@ -566,9 +572,17 @@ async def receive_file_material(message: Message):
     if (existing_news and existing_news.get("id")):
         from news_sender import _send_one
         content_id = existing_news.get("content_id") or 0
-        subscribe_preview_chat_id_raw = SharedConfig.get("subscribe_preview_chat_id")
+
+        chat_cfg = SharedConfig.get("chat") or {}
+        subscribe_preview = chat_cfg.get("subscribe_preview") or {}
+        subscribe_preview_chat_id_raw = subscribe_preview.get("chat_id")
+
+
         subscribe_preview_chat_id: int | None = None
         try:
+
+
+
             subscribe_preview_chat_id = int(str(subscribe_preview_chat_id_raw).strip())
         except (TypeError, ValueError):
             print(
