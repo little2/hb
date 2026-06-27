@@ -814,7 +814,11 @@ async def handle_start(message: Message,  command: Command = Command("start"), c
 @router.message(F.chat.type == ChatType.PRIVATE, Command("home"))
 async def handle_home(message: Message, ctx: AppCtx):
     SharedConfig.load(True)
-    url_school = SharedConfig.get("school_invite_link", "")
+    chat_cfg = SharedConfig.get("chat") or {}
+    public_school = chat_cfg.get("public") or {}
+    url_school = str(public_school.get("invite_link") or "")
+
+   
     text = "欢迎回家 \r\n\r\n"
     text += f"🔗 <a href='{url_school}'>🐲 龙阳学院</a>\r\n\r\n"
     text += "🎈 <i>任何一个龙阳的机器人，右下角菜单都有回家的指令</i>"
