@@ -1,3 +1,4 @@
+import contextlib
 import asyncio
 from aiohttp import web
 import redis.asyncio as redis
@@ -21,6 +22,7 @@ assert MYSQL_DB, "MYSQL_DB_NAME is required"
 from infra.redis_layer import RedisLayer
 from handlers.hongbao_handlers import router
 from handlers.hongbao_handlers import AppCtx
+from handlers.hongbao_handlers import hourly_target_chat_settings_refresh
 from shared_config import SharedConfig
 SharedConfig.load()
 
@@ -226,13 +228,19 @@ async def run_webhook(bot: Bot, dp: Dispatcher, rlayer: RedisLayer):
 
 async def main():
     bot, dp, rlayer = await build_app()
+    config_reload_task = asyncio.create_task(hourly_target_chat_settings_refresh())
 
-    if BOT_MODE == "polling":
-        await run_polling(bot, dp, rlayer)
-    elif BOT_MODE == "webhook":
-        await run_webhook(bot, dp, rlayer)
-    else:
-        raise RuntimeError("BOT_MODE must be 'polling' or 'webhook'")
+    try:
+        if BOT_MODE == "polling":
+            await run_polling(bot, dp, rlayer)
+        elif BOT_MODE == "webhook":
+            await run_webhook(bot, dp, rlayer)
+        else:
+            raise RuntimeError("BOT_MODE must be 'polling' or 'webhook'")
+    finally:
+        config_reload_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await config_reload_task
 
 if __name__ == "__main__":
     asyncio.run(main())

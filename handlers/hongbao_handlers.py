@@ -30,13 +30,25 @@ from config import (
 from infra.redis_layer import RedisLayer, split_amounts
 from services.hongbao_service import HongbaoService
 from shared_config import SharedConfig
-SharedConfig.load()
-chat_cfg = SharedConfig.get("chat") or {}
-school = chat_cfg.get("school") or {}
+def refresh_target_chat_settings() -> None:
+    global TARGET_CHAT_ID, TARGET_MESSAGE_THREAD_ID
 
-# 直接重新賦值，後續整個檔案用的 TARGET_CHAT_ID 都會是新值
-TARGET_CHAT_ID = int(school.get("chat_id") or TARGET_CHAT_ID)
-TARGET_MESSAGE_THREAD_ID = int(school.get("thread_id") or TARGET_MESSAGE_THREAD_ID)
+    SharedConfig.load(True)
+    chat_cfg = SharedConfig.get("chat") or {}
+    school = chat_cfg.get("school") or {}
+
+    # 直接重新賦值，後續整個檔案用的 TARGET_CHAT_ID 都會是新值
+    TARGET_CHAT_ID = int(school.get("chat_id") or TARGET_CHAT_ID)
+    TARGET_MESSAGE_THREAD_ID = int(school.get("thread_id") or TARGET_MESSAGE_THREAD_ID)
+
+
+async def hourly_target_chat_settings_refresh() -> None:
+    while True:
+        await asyncio.sleep(3600)
+        refresh_target_chat_settings()
+
+
+refresh_target_chat_settings()
 
 
 from material import RP_SKINS, I18N
