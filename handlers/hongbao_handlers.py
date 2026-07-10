@@ -1427,7 +1427,7 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict, hb_type: str 
                 try:
                     await ctx.bot.send_message(
                         chat_id=notify_chat_id,
-                        text=f"❌ 发送红包消息失败：{e}",
+                        text=f"❌ 1430发送红包消息失败：{e}",
                     )
                 except (TelegramBadRequest, TelegramForbiddenError, TelegramNotFound) as notify_err:
                     print(
@@ -1442,7 +1442,7 @@ async def _do_create_hongbao(ctx: AppCtx, msg:dict,  hongbao:dict, hb_type: str 
                 if notify_chat_id:
                     await ctx.bot.send_message(
                         chat_id=notify_chat_id,
-                        text=f"❌ 发送红包消息失败：{e}"
+                        text=f"❌ 1445发送红包消息失败：{e}"
                     )
             except (TelegramBadRequest, TelegramForbiddenError, TelegramNotFound) as notify_err:
                 print(
